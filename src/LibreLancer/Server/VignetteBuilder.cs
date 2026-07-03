@@ -10,7 +10,10 @@ public class VignetteParameters
     public int Seed = 4869;
     public string OfferGroup = "";
 
-    public bool AssassinateMission = true; // Must be set to true, false path not implemented in FL.
+    // Just for info: These names intentionally mirror vignetteparams.ini decision names.
+    // The random mission generator is responsible for deciding which flags
+    // are true for a generated mission.
+    public bool AssassinateMission;
     public bool AssassinateShip;
     public bool AssassinateSolar;
     public bool BigSolar;
