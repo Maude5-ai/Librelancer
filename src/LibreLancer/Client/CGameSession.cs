@@ -65,6 +65,7 @@ public partial class CGameSession : IClientPlayer
 
     private string? newPlayerStr;
     public NewsArticle[] News = [];
+    public NetMissionOffer[] MissionOffers = [];
     public long NextLevelWorth;
     public Action? ObjectiveUpdated;
 
@@ -285,7 +286,7 @@ public partial class CGameSession : IClientPlayer
 
 
     void IClientPlayer.BaseEnter(string _base, NetObjective objective, NetThnInfo thns, NewsArticle[] news,
-        SoldGood[] goods, NetSoldShip[] ships)
+        SoldGood[] goods, NetSoldShip[] ships, NetMissionOffer[] missionOffers)
     {
         if (enterCount > 0 && connection is EmbeddedServer es)
         {
@@ -300,6 +301,7 @@ public partial class CGameSession : IClientPlayer
         News = news;
         Goods = goods;
         Ships = ships;
+        MissionOffers = missionOffers;
         SceneChangeRequired();
         CutsceneUpdate(thns);
     }
