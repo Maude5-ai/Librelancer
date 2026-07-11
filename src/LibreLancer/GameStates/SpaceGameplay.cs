@@ -1485,31 +1485,37 @@ namespace LibreLancer
 
             weapons.AimPoint = GetAimPoint();
 
-            if (Input.IsActionDown(InputAction.USER_FIRE_WEAPONS))
+            // Don't fire while the chatbox has the keyboard — number keys are
+            // weapon-group binds, so typing in chat would otherwise discharge
+            // weapons (issue #411). Gated like throttle/strafe controls above.
+            if (!ui.KeyboardGrabbed)
             {
-                weapons.FireAll(world);
-            }
-
-            if (Input.IsActionDown(InputAction.USER_LAUNCH_MISSILES))
-            {
-                weapons.FireMissiles(world);
-            }
-
-            if (Input.IsActionDown(InputAction.USER_LAUNCH_COUNTERMEASURES))
-            {
-                weapons.FireCountermeasures(world);
-            }
-
-            if (Input.IsActionDown(InputAction.USER_LAUNCH_MINES))
-            {
-                weapons.FireMines(world);
-            }
-
-            for (int i = 0; i < 10; i++)
-            {
-                if (Input.IsActionDown(InputAction.USER_FIRE_WEAPON1 + i))
+                if (Input.IsActionDown(InputAction.USER_FIRE_WEAPONS))
                 {
-                    weapons.FireIndex(i, world);
+                    weapons.FireAll(world);
+                }
+
+                if (Input.IsActionDown(InputAction.USER_LAUNCH_MISSILES))
+                {
+                    weapons.FireMissiles(world);
+                }
+
+                if (Input.IsActionDown(InputAction.USER_LAUNCH_COUNTERMEASURES))
+                {
+                    weapons.FireCountermeasures(world);
+                }
+
+                if (Input.IsActionDown(InputAction.USER_LAUNCH_MINES))
+                {
+                    weapons.FireMines(world);
+                }
+
+                for (int i = 0; i < 10; i++)
+                {
+                    if (Input.IsActionDown(InputAction.USER_FIRE_WEAPON1 + i))
+                    {
+                        weapons.FireIndex(i, world);
+                    }
                 }
             }
 
