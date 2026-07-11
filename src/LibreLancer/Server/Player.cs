@@ -417,6 +417,7 @@ namespace LibreLancer.Server
                     rpcClient.SpawnPlayer(ID, System, world.GameWorld.CrcTranslation.ToArray(), Objective, Position,
                         Orientation, world.CurrentTick);
                     var pship = world.SpawnPlayer(this, Position, Orientation);
+                    if (pship == null) return; // player disconnected mid-launch
                     world.Population.PopulateInitialAroundPlayer(pship);
 
                     // Ensure mission runtime is properly initialized when spawning in space
@@ -1250,6 +1251,7 @@ namespace LibreLancer.Server
                         rpcClient.SpawnPlayer(ID, System, world.GameWorld.CrcTranslation.ToArray(), Objective, Position,
                             Orientation, world.CurrentTick);
                         var pship = world.SpawnPlayer(this, Position, Orientation);
+                        if (pship == null) return; // player disconnected mid-launch
                         world.Population.PopulateInitialAroundPlayer(pship);
                         HandleSpaceEntry();
                         msnRuntime?.SystemEnter(system, "Player");
@@ -1352,6 +1354,7 @@ namespace LibreLancer.Server
                     rpcClient.SpawnPlayer(ID, System, world.GameWorld.CrcTranslation.ToArray(), Objective, Position,
                         Orientation, world.CurrentTick);
                     var pship = world.SpawnPlayer(this, Position, Orientation);
+                    if (pship == null) return; // player disconnected mid-launch
                     world.Population.PopulateInitialAroundPlayer(pship);
 
                     if (undockFrom != null)
