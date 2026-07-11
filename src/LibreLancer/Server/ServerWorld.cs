@@ -489,23 +489,34 @@ namespace LibreLancer.Server
 
         public int PlayerCount;
 
-        public GameObject SpawnPlayer(Player player, Vector3 position, Quaternion orientation)
+        public GameObject? SpawnPlayer(Player player, Vector3 position, Quaternion orientation)
         {
+            // SpawnPlayer runs as a deferred world action; the player can have
+            // disconnected (Character nulled on the net thread) between the
+            // Launch request and this tick. Snapshot once and abort cleanly
+            // instead of crashing the whole server (disconnect race, evidenced
+            // in crash-evidence-419: 5/10 repro on contended hosts).
+            var character = player.Character;
+            if (character?.Ship == null)
+            {
+                FLLog.Warning("Server", $"SpawnPlayer aborted: '{player.Name}' disconnected mid-launch");
+                return null;
+            }
             player.VisitSystem(System);
             Interlocked.Increment(ref PlayerCount);
-            var obj = new GameObject(player.Character!.Ship!, Server.Resources, false, true);
-            foreach (var item in player.Character.Items.Where(x => !string.IsNullOrEmpty(x.Hardpoint)))
+            var obj = new GameObject(character.Ship, Server.Resources, false, true);
+            foreach (var item in character.Items.Where(x => !string.IsNullOrEmpty(x.Hardpoint)))
                 EquipmentObjectManager.InstantiateEquipment(obj, Server.Resources, null, EquipmentType.Server,
                     item.Hardpoint, item.Equipment!);
             obj.AddComponent(new SPlayerComponent(player, obj));
             obj.AddComponent(new WeaponControlComponent(obj));
             obj.AddComponent(new SHealthComponent(obj)
             {
-                CurrentHealth = player.Character.Ship!.Hitpoints,
-                MaxHealth = player.Character.Ship.Hitpoints
+                CurrentHealth = character.Ship.Hitpoints,
+                MaxHealth = character.Ship.Hitpoints
             });
-            obj.AddComponent(new SFuseRunnerComponent(obj) { DamageFuses = player.Character.Ship.Fuses });
-            obj.AddComponent(new ShipPhysicsComponent(obj, player.Character.Ship));
+            obj.AddComponent(new SFuseRunnerComponent(obj) { DamageFuses = character.Ship.Fuses });
+            obj.AddComponent(new ShipPhysicsComponent(obj, character.Ship));
             obj.AddComponent(new SDestroyableComponent(obj, this));
             var destroyedParts = player.Character.GetDestroyedParts();
             foreach (var part in destroyedParts)

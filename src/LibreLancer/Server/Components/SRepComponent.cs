@@ -39,7 +39,13 @@ public class SRepComponent : GameComponent
             return RepAttitude.Neutral;
         if (other.TryGetComponent<SPlayerComponent>(out var sp))
         {
-            return FromNumber(sp.Player.Character!.Reputation.GetReputation(Faction));
+            // Character goes null when the player disconnects; NPC spawn/rep
+            // queries can still see this object mid-teardown (disconnect race,
+            // crash-evidence-419 round 5/6/8 stacks)
+            var character = sp.Player.Character;
+            if (character == null)
+                return RepAttitude.Neutral;
+            return FromNumber(character.Reputation.GetReputation(Faction));
         }
         if (other.TryGetComponent<SRepComponent>(out var r))
         {
