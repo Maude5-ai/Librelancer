@@ -17,6 +17,11 @@ namespace LibreLancer.Input
 
         private InputMap map;
         private bool[] _isActionDown;
+        // Bindings that have fired ActionDown and not yet been released.
+        // ActionUp must be matched by base key alone: the modifier half of a
+        // chord can be released first, or chat can grab keyboard focus while
+        // the key is held, and the action still has to come back up (#411).
+        private UserInput[] _eventDown;
 
         public KeyCaptureContext KeyCapture = null!;
 
@@ -24,6 +29,7 @@ namespace LibreLancer.Input
         {
             this.map = map;
             _isActionDown = new bool[(int) InputAction.COUNT];
+            _eventDown = new UserInput[(int) InputAction.COUNT];
             game.Keyboard.KeyDown += Keyboard_KeyDown;
 			game.Keyboard.KeyUp += Keyboard_KeyUp;
             game.Mouse.MouseDown += Mouse_MouseDown;
@@ -40,7 +46,44 @@ namespace LibreLancer.Input
                 return game.Mouse.IsButtonDown(check.Mouse);
             }
             else {
-                return game.Keyboard.IsKeyDown(check.Key);
+                if (!game.Keyboard.IsKeyDown(check.Key)) return false;
+                // Chord bindings are distinct: Shift+W must not activate a
+                // plain W binding and vice versa (#411). A modifier bound as
+                // the base key is exempt from its own chord family.
+                const KeyModifiers chord = KeyModifiers.Shift | KeyModifiers.Control | KeyModifiers.Alt;
+                var mask = chord & ~OwnChordFamily(check.Key);
+                return (HeldChordModifiers() & mask) == (check.Modifiers & mask);
+            }
+        }
+
+        private KeyModifiers HeldChordModifiers()
+        {
+            var kb = game.Keyboard;
+            var mod = KeyModifiers.None;
+            if (kb.IsKeyDown(Keys.LeftShift) || kb.IsKeyDown(Keys.RightShift))
+                mod |= KeyModifiers.Shift;
+            if (kb.IsKeyDown(Keys.LeftControl) || kb.IsKeyDown(Keys.RightControl))
+                mod |= KeyModifiers.Control;
+            if (kb.IsKeyDown(Keys.LeftAlt) || kb.IsKeyDown(Keys.RightAlt))
+                mod |= KeyModifiers.Alt;
+            return mod;
+        }
+
+        private static KeyModifiers OwnChordFamily(Keys key)
+        {
+            switch (key)
+            {
+                case Keys.LeftShift:
+                case Keys.RightShift:
+                    return KeyModifiers.Shift;
+                case Keys.LeftControl:
+                case Keys.RightControl:
+                    return KeyModifiers.Control;
+                case Keys.LeftAlt:
+                case Keys.RightAlt:
+                    return KeyModifiers.Alt;
+                default:
+                    return KeyModifiers.None;
             }
         }
 
@@ -90,8 +133,11 @@ namespace LibreLancer.Input
 			if (e.IsRepeat) return;
             if (game.TextInputEnabled && !AllowedWhenTextInput(input))
                 return;
-            if(TryGetAction(input, out var act))
+            if (TryGetAction(input, out var act))
+            {
+                _eventDown[(int) act] = input;
                 ActionDown?.Invoke(act);
+            }
         }
 
         private static bool AllowedWhenTextInput(UserInput input)
@@ -136,11 +182,20 @@ namespace LibreLancer.Input
             }
             else
             {
-                var input = UserInput.FromKey(e.Modifiers, e.Key);
-                if (game.TextInputEnabled && !AllowedWhenTextInput(input))
-                    return;
-                if (TryGetAction(input, out var act))
-                    ActionUp?.Invoke(act);
+                // Releases are matched against armed bindings by base key
+                // only, with no text-input gate: modifiers may already be up
+                // and chat may have grabbed focus since the press. Only armed
+                // actions release, so no spurious ActionUp reaches the
+                // toggle-on-release handlers.
+                for (int i = 0; i < map.Actions.Length; i++)
+                {
+                    var armed = _eventDown[i];
+                    if (armed.NonEmpty && !armed.IsMouseButton && armed.Key == e.Key)
+                    {
+                        _eventDown[i] = default;
+                        ActionUp?.Invoke((InputAction) i);
+                    }
+                }
             }
         }
 
@@ -154,8 +209,14 @@ namespace LibreLancer.Input
             else
             {
                 var input = UserInput.FromMouse(e.Buttons);
-                if (TryGetAction(input, out var act))
-                    ActionUp?.Invoke(act);
+                for (int i = 0; i < map.Actions.Length; i++)
+                {
+                    if (_eventDown[i] == input)
+                    {
+                        _eventDown[i] = default;
+                        ActionUp?.Invoke((InputAction) i);
+                    }
+                }
             }
         }
 
@@ -163,8 +224,11 @@ namespace LibreLancer.Input
         {
             if (KeyCaptureContext.Capturing(KeyCapture)) return;
             var input = UserInput.FromMouse(e.Buttons);
-            if(TryGetAction(input, out var act))
+            if (TryGetAction(input, out var act))
+            {
+                _eventDown[(int) act] = input;
                 ActionDown?.Invoke(act);
+            }
         }
 
 		public void Dispose()
