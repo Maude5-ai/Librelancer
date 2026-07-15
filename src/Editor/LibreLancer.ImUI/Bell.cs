@@ -44,7 +44,7 @@ public class Bell
             }
 
             lastPlay = DateTime.Now;
-            if (Platform.RunningOS == OS.Windows)
+            if (OperatingSystem.IsWindows())
             {
                 PlaySound("Asterisk", IntPtr.Zero, SND_ASYNC);
             }

@@ -71,7 +71,7 @@ internal static class GLSwap
     public static void SwapWindow(IntPtr window, bool vsyncEnabled, bool fullscreen)
     {
         var interval = SDLCommon.SDL_GL_GetSwapInterval();
-        if (Platform.RunningOS != OS.Windows || fullscreen || !doDwmFlush)
+        if (!OperatingSystem.IsWindows() || fullscreen || !doDwmFlush)
         {
             if (vsyncEnabled && interval == 0) {
                 if (SDLCommon.SDL_GL_SetSwapInterval(-1) < 0)

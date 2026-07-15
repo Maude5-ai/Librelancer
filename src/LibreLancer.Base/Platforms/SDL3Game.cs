@@ -375,7 +375,7 @@ internal class SDL3Game : IGame
         if (IsFullScreen)
             flags |= SDL3.SDL_WindowFlags.SDL_WINDOW_FULLSCREEN;
         var sdlWin = SDL3.SDL_CreateWindow(Title, Width, height, flags);
-        if(Platform.RunningOS != OS.Windows)
+        if(!OperatingSystem.IsWindows())
             FileDialog.Sdl3Handle = sdlWin; //NFD currently handles windows better than SDL3. May change in future.
         Platform.Init(SDL3.SDL_GetCurrentVideoDriver());
         //Cursors
@@ -425,7 +425,7 @@ internal class SDL3Game : IGame
         RenderContext.SetDrawableSize(drawable);
         var scaleW = (float)Width / windowWidth;
         var scaleH = (float)height / windowHeight;
-        DpiScale = Platform.RunningOS != OS.Windows ? scaleH : SDL3.SDL_GetWindowDisplayScale(windowptr);
+        DpiScale = !OperatingSystem.IsWindows() ? scaleH : SDL3.SDL_GetWindowDisplayScale(windowptr);
 
         FLLog.Info("GL", $"Dpi Scale: {DpiScale:F4}");
         Texture2D? splashTexture;
@@ -466,7 +466,7 @@ internal class SDL3Game : IGame
         SDL3.SDL_ShowWindow(sdlWin);
         events = Platform.SubscribeEvents(this);
 
-        if (Platform.RunningOS == OS.Windows)
+        if (OperatingSystem.IsWindows())
         {
             SDL3.SDL_SetWindowsMessageHook(windowsCb, 0);
         }
@@ -500,7 +500,7 @@ internal class SDL3Game : IGame
             height = dw.Y;
             scaleW = (float)Width / windowWidth;
             scaleH = (float)height / windowHeight;
-            if (Platform.RunningOS != OS.Windows) DpiScale = scaleH;
+            if (!OperatingSystem.IsWindows()) DpiScale = scaleH;
             else
             {
                 DpiScale = SDL3.SDL_GetWindowDisplayScale(windowptr);
