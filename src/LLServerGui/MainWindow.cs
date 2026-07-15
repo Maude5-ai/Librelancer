@@ -428,7 +428,7 @@ public class MainWindow() : Game(600, 600, true)
 
 
         config = new ServerConfig();
-        if (Platform.RunningOS == OS.Windows)
+        if (OperatingSystem.IsWindows())
         {
             var combinedPath = Path.Join(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), @"\Microsoft Games\Freelancer");
             var flPathRegistry = IntPtr.Size == 8

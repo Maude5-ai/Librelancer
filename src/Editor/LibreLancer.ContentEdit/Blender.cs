@@ -66,7 +66,7 @@ public class Blender
 
     public static string? AutodetectBlender()
     {
-        if (Platform.RunningOS == OS.Windows)
+        if (OperatingSystem.IsWindows())
         {
             //Try and get highest blender version from Program Files
             var blenderDefaultDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),

@@ -253,7 +253,7 @@ namespace LancerEdit
             #else
             var lleditscript = Path.Combine(GetBasePath(), "lleditscript");
             #endif
-            if (Platform.RunningOS == OS.Windows) lleditscript += ".exe";
+            if (OperatingSystem.IsWindows()) lleditscript += ".exe";
             var args = $"--args-stdin \"{script.Filename}\"";
             var pi = new ProcessStartInfo(lleditscript, args);
             pi.UseShellExecute = false;

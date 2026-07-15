@@ -72,7 +72,7 @@ public static class FLLog
                     var q = m_Queue.Take();
                     if (UIThread != null && AppendLine != null)
                         UIThread.QueueUIThread(() => AppendLine(q.Value,q.Severity));
-                    if (Platform.RunningOS == OS.Windows)
+                    if (OperatingSystem.IsWindows())
                     {
                         var c = Console.ForegroundColor;
                         Console.ForegroundColor = q.Color;

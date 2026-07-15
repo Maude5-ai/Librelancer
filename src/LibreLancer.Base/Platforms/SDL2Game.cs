@@ -298,7 +298,7 @@ internal class SDL2Game : IGame
     {
         SDL2.SDL_SetHint(SDL2.SDL_HINT_VIDEO_ALLOW_SCREENSAVER, allowScreensaver ? "1" : "0");
         //Try to set DPI Awareness on Win32
-        if (Platform.RunningOS == OS.Windows)
+        if (OperatingSystem.IsWindows())
         {
             try
             {
@@ -401,7 +401,7 @@ internal class SDL2Game : IGame
         height = drawable.Y;
         var scaleW = (float) width / windowWidth;
         var scaleH = (float) height / windowHeight;
-        if (Platform.RunningOS != OS.Windows) DpiScale = scaleH;
+        if (!OperatingSystem.IsWindows()) DpiScale = scaleH;
         else
         {
             if (SDL2.SDL_GetDisplayDPI(0, out float ddpi, out _, out _) == 0)
@@ -472,7 +472,7 @@ internal class SDL2Game : IGame
             height = dw.Y;
             scaleW = (float) width / windowWidth;
             scaleH = (float) height / windowHeight;
-            if (Platform.RunningOS != OS.Windows) DpiScale = scaleH;
+            if (!OperatingSystem.IsWindows()) DpiScale = scaleH;
             //This allows for press/release in same frame to have
             //button down for one frame, e.g. trackpoint middle click on Linux/libinput.
             MouseButtons pressedThisFrame = 0;
@@ -556,7 +556,7 @@ internal class SDL2Game : IGame
                     }
                     case SDL2.SDL_EventType.SDL_SYSWMEVENT:
                     {
-                        if (Platform.RunningOS == OS.Windows)
+                        if (OperatingSystem.IsWindows())
                         {
                             unsafe
                             {

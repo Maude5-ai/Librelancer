@@ -168,7 +168,7 @@ public class RecentFilesHandler
     {
         string? directory;
 
-        if (Platform.RunningOS == OS.Linux)
+        if (OperatingSystem.IsLinux())
         {
             if (string.IsNullOrWhiteSpace(directory = Environment.GetEnvironmentVariable("XDG_CACHE_HOME")))
             {

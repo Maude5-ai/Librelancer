@@ -73,7 +73,7 @@ public static class FileDialog
                 return new Utf8Native();
             }
 
-            return Platform.RunningOS == OS.Windows
+            return OperatingSystem.IsWindows()
                 ? new Utf8Native() {Buffer = UnsafeHelpers.StringToNativeUTF16(str)}
                 : new Utf8Native() {Buffer = UnsafeHelpers.StringToNativeUTF8(str)};
         }
@@ -129,7 +129,7 @@ public static class FileDialog
         {
             return null;
         }
-        else if (Platform.RunningOS == OS.Windows)
+        else if (OperatingSystem.IsWindows())
         {
             return Marshal.PtrToStringUni((IntPtr) input);
         }

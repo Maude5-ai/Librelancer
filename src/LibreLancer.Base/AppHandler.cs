@@ -28,7 +28,7 @@ public static class AppHandler
             LogPlatform();
         }
 
-        if (Platform.RunningOS != OS.Windows)
+        if (!OperatingSystem.IsWindows())
         {
             return;
         }
@@ -40,7 +40,7 @@ public static class AppHandler
 
     private static string LogsFolder()
     {
-        if (Platform.RunningOS != OS.Linux)
+        if (!OperatingSystem.IsLinux())
         {
             return Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
         }
@@ -80,7 +80,7 @@ public static class AppHandler
     {
         var errorMessage = $"{ProjectName} has crashed. See the log for more information.";
 
-        if (Platform.RunningOS == OS.Windows)
+        if (OperatingSystem.IsWindows())
         {
             var binDir = Path.GetDirectoryName(Assembly.GetCallingAssembly().Location) ?? "";
             var fullPath = Path.Combine(binDir, IntPtr.Size == 8 ? "x64" : "x86");

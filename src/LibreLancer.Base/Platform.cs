@@ -32,7 +32,6 @@ public record MountInfo(string Name, string Path);
 
 public static class Platform
 {
-    public static OS RunningOS;
     internal static IPlatform RunningPlatform;
     public static string OSDescription;
 
@@ -62,41 +61,28 @@ public static class Platform
     static Platform ()
     {
         OSDescription = $"{RuntimeInformation.OSDescription} - {RuntimeInformation.ProcessArchitecture}";
-        switch (Environment.OSVersion.Platform) {
-            case PlatformID.Unix:
-                if (Directory.Exists ("/Applications")
-                    & Directory.Exists ("/System")
-                    & Directory.Exists ("/Users")
-                    & Directory.Exists ("/Volumes")) {
-                    RunningOS = OS.Mac;
-                    RunningPlatform = new MacOSPlatform();
-                } else {
-                    RunningOS = OS.Linux;
-                    RunningPlatform = new LinuxPlatform ();
-                    //Get current distribution
-                    if (File.Exists("/etc/os-release"))
-                    {
-                        var x = Regex.Match(File.ReadAllText("/etc/os-release"), @"^PRETTY_NAME\s*?\=(.*)$",
-                            RegexOptions.Multiline);
-                        if (x.Success && x.Groups[1].Length > 0)
-                            OSDescription = x.Groups[1].Value.TrimStart('\"', '\'').TrimEnd('\"', '\'') + " " +
-                                            OSDescription;
-                    }
-                    else if (Shell.HasCommand("lsb_release")) {
-                        var lsbVersion = Shell.GetString("lsb_release", "-d");
-                        if (!string.IsNullOrWhiteSpace(lsbVersion))
-                            OSDescription = lsbVersion + " " + OSDescription;
-                    }
-                }
-                break;
-            case PlatformID.MacOSX:
-                RunningOS = OS.Mac;
-                RunningPlatform = new MacOSPlatform();
-                break;
-            default:
-                RunningOS = OS.Windows;
-                RunningPlatform = new Win32Platform ();
-                break;
+        if (OperatingSystem.IsWindows()) {
+            RunningPlatform = new Win32Platform ();
+        }
+        else if (OperatingSystem.IsMacOS()) {
+            RunningPlatform = new MacOSPlatform();
+        }
+        else {
+            RunningPlatform = new LinuxPlatform ();
+            //Get current distribution
+            if (File.Exists("/etc/os-release"))
+            {
+                var x = Regex.Match(File.ReadAllText("/etc/os-release"), @"^PRETTY_NAME\s*?\=(.*)$",
+                    RegexOptions.Multiline);
+                if (x.Success && x.Groups[1].Length > 0)
+                    OSDescription = x.Groups[1].Value.TrimStart('\"', '\'').TrimEnd('\"', '\'') + " " +
+                                    OSDescription;
+            }
+            else if (Shell.HasCommand("lsb_release")) {
+                var lsbVersion = Shell.GetString("lsb_release", "-d");
+                if (!string.IsNullOrWhiteSpace(lsbVersion))
+                    OSDescription = lsbVersion + " " + OSDescription;
+            }
         }
         RegisterDllMap(typeof(Platform).Assembly);
         var env = Environment.GetEnvironmentVariables();
@@ -152,7 +138,7 @@ public static class Platform
 
     public static void RegisterDllMap(Assembly assembly)
     {
-        if(RunningOS is OS.Linux or OS.Mac)
+        if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS())
             DllMap.Register(assembly);
     }
     public static byte[]? GetMonospaceBytes()
@@ -193,7 +179,7 @@ public static class Platform
 
     public static bool CheckDependencies()
     {
-        if (RunningOS != OS.Windows) return true;
+        if (!OperatingSystem.IsWindows()) return true;
 #if MSVC_BUILD
             if (!CheckVCRun("vcruntime140.dll", V2015_64, V2015_32)) return false;
             if(IntPtr.Size == 8) //vcruntime140_1.dll only seems present on x64
@@ -201,11 +187,4 @@ public static class Platform
 #endif
         return true;
     }
-}
-
-public enum OS
-{
-    Windows,
-    Mac,
-    Linux
 }

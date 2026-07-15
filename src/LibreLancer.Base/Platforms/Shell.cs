@@ -124,19 +124,11 @@ public static class Shell
 
     public static void OpenCommand(string path)
     {
-        switch (Platform.RunningOS)
-        {
-            case OS.Windows:
-                Process.Start(new ProcessStartInfo(path) {UseShellExecute = true});
-                break;
-            case OS.Mac:
-                Process.Start("open", $"\"{path}\"");
-                break;
-            case OS.Linux:
-                Process.Start("xdg-open", $"\"{path}\"");
-                break;
-            default:
-                throw new ArgumentOutOfRangeException();
-        }
+        if (OperatingSystem.IsWindows())
+            Process.Start(new ProcessStartInfo(path) {UseShellExecute = true});
+        else if (OperatingSystem.IsMacOS())
+            Process.Start("open", $"\"{path}\"");
+        else
+            Process.Start("xdg-open", $"\"{path}\"");
     }
 }
