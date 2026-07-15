@@ -18,7 +18,7 @@ internal static class DialogPlatform
 
     static DialogPlatform()
     {
-        if(Platform.RunningOS == OS.Windows)
+        if(OperatingSystem.IsWindows())
         {
             Backend = WINFORMS;
             return;

@@ -240,7 +240,7 @@ namespace LancerEdit
             {
                 ImGuiHelper.UserScale = config.UiScale;
             }
-            if (Platform.RunningOS == OS.Windows && ImGui.Button("Set File Assocations"))
+            if (OperatingSystem.IsWindows() && ImGui.Button("Set File Assocations"))
             {
                 Win32Integration.FileTypes();
             }

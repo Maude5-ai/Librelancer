@@ -293,7 +293,7 @@ public class QuickFileBrowser
     void ResetToHome()
     {
         var f = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        if (!Directory.Exists(f) && Platform.RunningOS != OS.Windows)
+        if (!Directory.Exists(f) && !OperatingSystem.IsWindows())
             f = "/";
         OpenDirectory(f);
         history = new NavigationHistory() {Path = currentDirectory.FullPath};
