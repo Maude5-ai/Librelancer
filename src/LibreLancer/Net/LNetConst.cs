@@ -14,5 +14,8 @@ namespace LibreLancer.Net
         public const uint DisconnectMagic = 0xFEFEBBFE;
         public const int CharsPerAccount = 10;
         public const int AccountRateLimitMs = 3000;
+        public const int AccountWindowLimit = 30;
+        public const int AccountCreationWindowHours = 1;
+        public const long AccountCreationWindowMs = AccountCreationWindowHours * 3600000;
     }
 }

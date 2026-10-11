@@ -290,6 +290,15 @@ namespace LibreLancer.Server
             });
         }
 
+        public async Task<bool> AccountExists(Guid playerGuid)
+        {
+            return await Run(async () =>
+            {
+                await using var ctx = CreateDbContext();
+                return await ctx.Accounts.Where(x => x.AccountIdentifier == playerGuid).AnyAsync();
+            });
+        }
+
         public async Task<List<SelectableCharacter>?> PlayerLogin(Guid playerGuid)
         {
             return await Run(async () =>

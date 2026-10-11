@@ -12,6 +12,7 @@ public class ServerConfig
     public int Port = LNetConst.DefaultPort;
     public int ThreadCount = 0;
     public int MaxAccountCharacters = 10;
+    public bool EnableRateLimiting = true;
 
     public void CopyFrom(ServerConfig other)
     {
@@ -23,5 +24,6 @@ public class ServerConfig
         Port = other.Port;
         ThreadCount = other.ThreadCount;
         MaxAccountCharacters = other.MaxAccountCharacters;
+        EnableRateLimiting = other.EnableRateLimiting;
     }
 }

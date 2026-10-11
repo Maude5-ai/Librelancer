@@ -32,6 +32,7 @@ namespace LibreLancer.Server
         public string ServerNews = "News of the server goes here";
         public string? LoginUrl = null;
         public int MaxAccountCharacters = 10;
+        public bool EnableRateLimiting = true;
 
         public bool SendDebugInfo = false;
         public string DebugInfo { get; private set; } = null!;
@@ -46,6 +47,7 @@ namespace LibreLancer.Server
         public ResourceManager Resources;
         public WorldProvider Worlds = null!;
         public ServerPerformance PerformanceStats = null!;
+        public RateLimiting Limits = null!;
 
         public BaselinePriceBundle BaselineGoodPrices;
 
@@ -248,46 +250,13 @@ namespace LibreLancer.Server
         private ParallelActionRunner updateRunner = null!;
 
         private Stopwatch serverTiming = null!;
-        private Lock rateLimitLock = new();
-        private Dictionary<IPKey, long> rateLimits = new();
 
-        public int GetRateLimitDelay(Player player)
-        {
-            lock (rateLimitLock)
-            {
-                var curT = serverTiming.ElapsedMilliseconds;
-                var t = rateLimits.GetValueOrDefault(player.Key, 0L);
-                var delay = (t - curT);
-                rateLimits[player.Key] = serverTiming.ElapsedMilliseconds + LNetConst.AccountRateLimitMs;
-                return (int)(delay > 0 ? delay : 0);
-            }
-        }
-
-        void CleanRateDelay(long t)
-        {
-            lock (rateLimitLock)
-            {
-                var allKeys = rateLimits.Keys.ToArray();
-                foreach (var k in allKeys)
-                {
-                    if (rateLimits[k] < t)
-                        rateLimits.Remove(k);
-                }
-            }
-        }
-
-        private long lastRateLimitClean = 0;
 
         private void Process(TimeSpan time, TimeSpan totalTime, uint currentTick, int step)
         {
             CurrentTick = currentTick;
             var startTime = serverTiming.Elapsed;
-            var cleanT = serverTiming.ElapsedMilliseconds;
-            if (serverTiming.ElapsedMilliseconds - lastRateLimitClean > 5000)
-            {
-                Task.Run(() => CleanRateDelay(cleanT));
-                lastRateLimitClean = cleanT;
-            }
+            Limits.Update();
             while (!localPackets.IsEmpty && localPackets.TryDequeue(out var local))
                 LocalPlayer!.ProcessPacketDirect(local);
             if (worldRequests.Count > 0 && worldRequests.TryDequeue(out var a))
@@ -371,6 +340,7 @@ namespace LibreLancer.Server
             InitBaselinePrices();
             Worlds = new WorldProvider(this);
             serverTiming = Stopwatch.StartNew();
+            Limits = new(serverTiming, EnableRateLimiting);
             Database = new ServerDatabase(this);
             Listener?.Start();
             updateRunner = new ParallelActionRunner(ThreadCount, "Server Update Worker");

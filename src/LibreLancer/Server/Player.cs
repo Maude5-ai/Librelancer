@@ -1070,7 +1070,7 @@ namespace LibreLancer.Server
             try
             {
                 FLLog.Info("Server", "Account logged in");
-                var d = Game.GetRateLimitDelay(this);
+                var d = Game.Limits.GetRateLimitDelay(this);
                 if (d > 0)
                 {
                     FLLog.Debug("Server", $"Waiting {d}ms, rate limited.");
@@ -1080,6 +1080,15 @@ namespace LibreLancer.Server
                 {
                     return;
                 }
+
+                if (!await Game.Database.AccountExists(playerGuid) &&
+                    !Game.Limits.TryCreate(this))
+                {
+                    FLLog.Debug("Server", "Kicked for rate limit");
+                    Client.Disconnect(DisconnectReason.Kicked);
+                    return;
+                }
+
                 CharacterList = (await Game.Database.PlayerLogin(playerGuid))!;
 
                 if (CharacterList == null)
@@ -1191,7 +1200,7 @@ namespace LibreLancer.Server
             if (packet is IServerPlayer_CreateNewCharacterPacket ||
                 packet is IServerPlayer_DeleteCharacterPacket)
             {
-                var d = Game.GetRateLimitDelay(this);
+                var d = Game.Limits.GetRateLimitDelay(this);
                 if (d > 0)
                 {
                     FLLog.Debug("Player", "Rate limiting character create/delete");
@@ -1312,6 +1321,11 @@ namespace LibreLancer.Server
                 if (count >= Game.MaxAccountCharacters)
                 {
                     FLLog.Error("Player", $"Account {playerGuid} has too many characters. Reject new character");
+                    return false;
+                }
+                if (!Game.Limits.TryCreate(this))
+                {
+                    FLLog.Error("Player", $"Disallowing for creation rate limit");
                     return false;
                 }
                 FLLog.Info("Player", $"New char: {name}");
