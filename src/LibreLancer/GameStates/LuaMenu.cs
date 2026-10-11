@@ -431,7 +431,6 @@ namespace LibreLancer
                 FLLog.Info("Net", $"Requesting new char: `{name}`");
                 netSession.RpcServer.CreateNewCharacter(name, index).ContinueWith((task) =>
                 {
-                    Console.WriteLine(task.Result);
                     state.Game.QueueUIThread(() => onResult.Call(task.Result));
                 });
             }

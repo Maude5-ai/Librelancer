@@ -50,7 +50,7 @@ public class PacketWriter
 
     public void Put(DisconnectReason reason)
     {
-        writer.Put(LNetConst.DISCONNECT_MAGIC);
+        writer.Put(LNetConst.DisconnectMagic);
         writer.Put((byte)reason);
     }
 

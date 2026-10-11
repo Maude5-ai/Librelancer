@@ -278,6 +278,18 @@ namespace LibreLancer.Server
             });
         }
 
+        public async Task<int> GetCharacterCount(Guid playerGuid)
+        {
+            return await Run(async () =>
+            {
+                await using var ctx = CreateDbContext();
+                var acc = ctx.Accounts.Where(x => x.AccountIdentifier == playerGuid)
+                    .Include(x => x.Characters)
+                    .FirstOrDefault();
+                return acc?.Characters.Count ?? 0;
+            });
+        }
+
         public async Task<List<SelectableCharacter>?> PlayerLogin(Guid playerGuid)
         {
             return await Run(async () =>

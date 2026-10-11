@@ -56,6 +56,7 @@ class characterlist : characterlist_Designer
         var cl = Game.CharacterList();
         scn.loadchar.Enabled = cl.ValidSelection();
         scn.deletechar.Enabled = cl.ValidSelection();
+        scn.newchar.Enabled = cl.Count < cl.CharacterLimit;
     }
     
     OpenNewCharacter()

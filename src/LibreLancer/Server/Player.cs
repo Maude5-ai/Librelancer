@@ -1308,6 +1308,12 @@ namespace LibreLancer.Server
         {
             if (!Game.Database.NameInUse(name))
             {
+                var count = await Game.Database.GetCharacterCount(playerGuid);
+                if (count >= Game.MaxAccountCharacters)
+                {
+                    FLLog.Error("Player", $"Account {playerGuid} has too many characters. Reject new character");
+                    return false;
+                }
                 FLLog.Info("Player", $"New char: {name}");
                 SelectableCharacter? sel = null;
                 long id = await Game.Database.AddCharacter(playerGuid,

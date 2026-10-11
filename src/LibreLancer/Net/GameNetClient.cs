@@ -26,7 +26,7 @@ namespace LibreLancer.Net
         private IUIThread mainThread;
         private Thread networkThread = null!;
         private NetManager client = null!;
-        public string AppIdentifier = LNetConst.DEFAULT_APP_IDENT;
+        public string AppIdentifier = LNetConst.DefaultAppIdent;
 
         public int MaxSequencedSize => 500; // Min safe UDP packet size - 8 bytes overhead
         public event Action<LocalServerInfo>? ServerFound;
@@ -209,7 +209,7 @@ namespace LibreLancer.Net
 
             if (IPAddress.TryParse(str, out var ip))
             {
-                endpoint = new IPEndPoint(ip, LNetConst.DEFAULT_PORT);
+                endpoint = new IPEndPoint(ip, LNetConst.DefaultPort);
                 return true;
             }
 
@@ -242,7 +242,7 @@ namespace LibreLancer.Net
 
             if (TryResolve(str, out ip))
             {
-                endpoint = new IPEndPoint(ip, LNetConst.DEFAULT_PORT);
+                endpoint = new IPEndPoint(ip, LNetConst.DefaultPort);
                 return true;
             }
 
@@ -366,7 +366,7 @@ namespace LibreLancer.Net
                     info.EndPoint.Port = (int) msg.GetVariableUInt32();
 
                     PacketWriter writer = new PacketWriter();
-                    writer.Put(LNetConst.PING_MAGIC);
+                    writer.Put(LNetConst.PingMagic);
                     client.SendUnconnectedMessage(writer, remote);
 
                     lock (srvinfo)
@@ -474,9 +474,9 @@ namespace LibreLancer.Net
                     Interlocked.Decrement(ref localPeerRequests);
                     lock (srvinfo) srvinfo.Clear();
                     var dw = new PacketWriter();
-                    dw.Put(LNetConst.BROADCAST_KEY);
+                    dw.Put(LNetConst.BroadcastKey);
                     FLLog.Debug("Net", "Sending broadcast");
-                    client.SendBroadcast(dw, LNetConst.BROADCAST_PORT);
+                    client.SendBroadcast(dw, LNetConst.BroadcastPort);
                 }
 
                 // ping servers
@@ -490,7 +490,7 @@ namespace LibreLancer.Net
                         {
                             inf.LastPingTime = nowMs;
                             var om = new PacketWriter();
-                            om.Put(LNetConst.PING_MAGIC);
+                            om.Put(LNetConst.PingMagic);
                             client.SendUnconnectedMessage(om, inf.EndPoint);
                         }
                     }

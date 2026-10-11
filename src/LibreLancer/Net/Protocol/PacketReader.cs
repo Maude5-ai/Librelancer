@@ -21,7 +21,7 @@ public struct PacketReader
     public bool TryGetDisconnectReason(out DisconnectReason reason)
     {
         reason = DisconnectReason.Unknown;
-        if (!reader.TryGetUInt(out var sig) || sig != LNetConst.DISCONNECT_MAGIC)
+        if (!reader.TryGetUInt(out var sig) || sig != LNetConst.DisconnectMagic)
             return false;
         if (!reader.TryGetByte(out var r) || r >= (byte) DisconnectReason.MaxValue)
             return false;

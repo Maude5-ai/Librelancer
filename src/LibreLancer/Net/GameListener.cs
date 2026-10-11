@@ -27,9 +27,9 @@ namespace LibreLancer.Net
         private GameServer game;
         private static readonly object TagConnecting = new();
 
-        public int Port = LNetConst.DEFAULT_PORT;
+        public int Port = LNetConst.DefaultPort;
         public int MaxConnections = 200;
-        public string AppIdentifier = LNetConst.DEFAULT_APP_IDENT;
+        public string AppIdentifier = LNetConst.DefaultAppIdent;
 
         private bool running = false;
         private Thread netThread = null!;
@@ -204,7 +204,7 @@ namespace LibreLancer.Net
                 if (type == UnconnectedMessageType.Broadcast)
                 {
                     new PacketReader(reader).TryGetULong(out ulong key);
-                    if (key != LNetConst.BROADCAST_KEY) return;
+                    if (key != LNetConst.BroadcastKey) return;
                     var dw = new PacketWriter();
                     dw.Put((byte) 1);
                     dw.Put(unique);
@@ -225,7 +225,7 @@ namespace LibreLancer.Net
                     if (type == UnconnectedMessageType.BasicMessage)
                     {
                         if (!reader.TryGetUInt(out uint magic)) return;
-                        if (magic != LNetConst.PING_MAGIC) return;
+                        if (magic != LNetConst.PingMagic) return;
                         var dw = new PacketWriter();
                         dw.Put((byte) 0);
                         Server.SendUnconnectedMessage(dw, point);
@@ -275,7 +275,7 @@ namespace LibreLancer.Net
             broadcastServer.IPv6Enabled = true;
             broadcastServer.BroadcastReceiveEnabled = true;
             broadcastServer.UnsyncedEvents = true;
-            broadcastServer.Start(LNetConst.BROADCAST_PORT);
+            broadcastServer.Start(LNetConst.BroadcastPort);
             Server = new NetManager(listener)
             {
                 IPv6Enabled = true,

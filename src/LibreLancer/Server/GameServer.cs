@@ -31,6 +31,7 @@ namespace LibreLancer.Server
         public string ServerDescription = "Description of the server is here.";
         public string ServerNews = "News of the server goes here";
         public string? LoginUrl = null;
+        public int MaxAccountCharacters = 10;
 
         public bool SendDebugInfo = false;
         public string DebugInfo { get; private set; } = null!;
@@ -257,8 +258,7 @@ namespace LibreLancer.Server
                 var curT = serverTiming.ElapsedMilliseconds;
                 var t = rateLimits.GetValueOrDefault(player.Key, 0L);
                 var delay = (t - curT);
-                rateLimits[player.Key] = serverTiming.ElapsedMilliseconds + 2000;
-                FLLog.Debug("Client", $"Delay: {delay} from {t} (curr: {curT})");
+                rateLimits[player.Key] = serverTiming.ElapsedMilliseconds + LNetConst.AccountRateLimitMs;
                 return (int)(delay > 0 ? delay : 0);
             }
         }
