@@ -90,7 +90,9 @@ namespace LibreLancer.Server
 
         public RemoteClientPlayer RpcClient => rpcClient;
 
-        public Player(IPacketClient client, GameServer game, Guid playerGuid)
+        public IPKey Key { get; private set; }
+
+        public Player(IPacketClient client, GameServer game, Guid playerGuid, IPKey key)
         {
             this.Client = client;
             this.Game = game;
@@ -98,6 +100,7 @@ namespace LibreLancer.Server
             ID = Interlocked.Increment(ref _gid);
             ResponseHandler = new NetResponseHandler();
             rpcClient = new RemoteClientPlayer(client, ResponseHandler);
+            Key = key;
         }
 
         public void SetObjective(NetObjective objective, bool history)

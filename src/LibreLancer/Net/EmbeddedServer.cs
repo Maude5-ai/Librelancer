@@ -31,7 +31,7 @@ namespace LibreLancer.Net
                 ScriptsFolder = Path.Combine(saveFolder, "scripts"),
                 ThreadCount = 1
             };
-            Server.LocalPlayer = new Player(Client, Server, Guid.Empty);
+            Server.LocalPlayer = new Player(Client, Server, Guid.Empty, default);
             Server.ConnectedPlayers.Add(Server.LocalPlayer);
             Server.LocalPlayer.SaveFolder = saveFolder;
         }

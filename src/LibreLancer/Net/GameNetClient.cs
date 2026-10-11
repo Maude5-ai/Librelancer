@@ -317,6 +317,7 @@ namespace LibreLancer.Net
                 IPv6Enabled = true,
                 NatPunchEnabled = true,
                 EnableStatistics = true,
+                UnsyncedEvents = true,
                 ChannelsCount = 3
             };
             listener.NetworkReceiveUnconnectedEvent += (remote, npr, type) =>
@@ -497,7 +498,7 @@ namespace LibreLancer.Net
 
                 // events
                 client.PollEvents();
-                Thread.Sleep(1);
+                Thread.Sleep(5);
             }
 
             client.DisconnectAll();

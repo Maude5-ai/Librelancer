@@ -35,6 +35,7 @@ namespace LibreLancer.Net
         private Thread netThread = null!;
 		public NetManager Server = null!;
         private HttpClient http = null!;
+        private IPConnectionLimiter limiter = new(16);
 
 		public GameListener(GameServer srv)
         {
@@ -54,6 +55,19 @@ namespace LibreLancer.Net
         private AutoResetEvent stopHandle = null!;
         private DateTime lastKeyPrint = DateTime.UnixEpoch;
 
+        void PlayerConnect(ConnectionRequest request, Guid guid, IPKey ipKey)
+        {
+            var peer = request.Accept();
+            var remote = new RemotePacketClient(peer);
+            var p = new Player(remote, game, guid, ipKey);
+            peer.Tag = p;
+            _ = Task.Run(async () => await p.OnLoggedIn());
+            lock (game.ConnectedPlayers)
+            {
+                game.ConnectedPlayers.Add(p);
+            }
+        }
+
         private void NetThread()
         {
             stopHandle = new AutoResetEvent(false);
@@ -64,11 +78,30 @@ namespace LibreLancer.Net
             var unique = Guid.NewGuid();
             listener.ConnectionRequestEvent += request =>
             {
+                if (Server.ConnectedPeersCount > MaxConnections)
+                {
+                    var dw = new PacketWriter();
+                    dw.Put(DisconnectReason.TooManyConnections);
+                    request.Reject(dw);
+                    return;
+                }
+
+                var ipKey = IPKey.From(request.RemoteEndPoint.Address);
+                if (!limiter.TryConnect(ipKey))
+                {
+                    FLLog.Debug("Server", $"Connect limit exceeded {request.RemoteEndPoint.Address}");
+                    var dw = new PacketWriter();
+                    dw.Put(DisconnectReason.InvalidEndpoint);
+                    request.Reject(dw);
+                    return;
+                }
+
                 if (!new PacketReader(request.Data).TryGetString(out var key))
                 {
                     FLLog.Debug("Server", $"Connect with no key {request.RemoteEndPoint}");
                     var dw = new PacketWriter();
                     dw.Put(DisconnectReason.NoProtocolHash);
+                    limiter.Disconnect(ipKey);
                     request.Reject(dw);
                     return;
                 }
@@ -82,16 +115,11 @@ namespace LibreLancer.Net
                     }
                     var dw = new PacketWriter();
                     dw.Put(DisconnectReason.BadProtocolHash);
+                    limiter.Disconnect(ipKey);
                     request.Reject(dw);
                     return;
                 }
-                if (Server.ConnectedPeersCount > MaxConnections)
-                {
-                    var dw = new PacketWriter();
-                    dw.Put(DisconnectReason.TooManyConnections);
-                    request.Reject(dw);
-                    return;
-                }
+
                 var reqReader = new PacketReader(request.Data);
                 if (!AuthenticationInfo.TryGet(reqReader, out var auth))
                 {
@@ -107,6 +135,7 @@ namespace LibreLancer.Net
                         dw.Put((byte)AuthenticationKind.GUID);
                     }
                     FLLog.Debug("Server", "Sending login info");
+                    limiter.Disconnect(ipKey);
                     request.Reject(dw);
                 }
                 else if(!string.IsNullOrEmpty(game.LoginUrl))
@@ -116,6 +145,7 @@ namespace LibreLancer.Net
                         FLLog.Info("Login", $"Login failed for {request.RemoteEndPoint}");
                         var dw = new PacketWriter();
                         dw.Put(DisconnectReason.LoginError);
+                        limiter.Disconnect(ipKey);
                         request.Reject(dw);
                     }
                     else
@@ -128,41 +158,26 @@ namespace LibreLancer.Net
                                 FLLog.Info("Login", $"Login failed for {request.RemoteEndPoint}");
                                 var dw = new PacketWriter();
                                 dw.Put(DisconnectReason.LoginError);
+                                limiter.Disconnect(ipKey);
                                 request.Reject(dw);
                             }
                             else
                             {
-                                var peer = request.Accept();
-                                var remote = new RemotePacketClient(peer);
-                                var p = new Player(remote,
-                                    game, guid);
-                                peer.Tag = p;
-                                _ = Task.Run(async () => await p.OnLoggedIn());
-                                lock (game.ConnectedPlayers)
-                                {
-                                    game.ConnectedPlayers.Add(p);
-                                }
+                                PlayerConnect(request, guid, ipKey);
                             }
                         });
                     }
                 }
                 else if (auth.TryGetGuid(out var authGuid))
                 {
-                    var peer = request.Accept();
-                    var remote = new RemotePacketClient(peer);
-                    var p = new Player(remote, game, authGuid);
-                    peer.Tag = p;
-                    lock (game.ConnectedPlayers)
-                    {
-                        game.ConnectedPlayers.Add(p);
-                    }
-                    Task.Run(async () => await p.OnLoggedIn());
+                    PlayerConnect(request, authGuid, ipKey);
                 }
                 else
                 {
                     FLLog.Info("Login", $"Invalid GUID for {request.RemoteEndPoint}");
                     var dw = new PacketWriter();
                     dw.Put(DisconnectReason.ConnectionError);
+                    limiter.Disconnect(ipKey);
                     request.Reject(dw);
                 }
             };
@@ -175,6 +190,7 @@ namespace LibreLancer.Net
                 FLLog.Info("Server", $"Disconnected: {peer.Address}. Reason: {info.Reason}");
                 if (peer.Tag is Player player)
                 {
+                    limiter.Disconnect(player.Key);
                     player.Disconnected();
                     lock (game.ConnectedPlayers)
                     {
