@@ -11,6 +11,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using LibreLancer.Net.Protocol;
@@ -435,7 +436,22 @@ namespace LibreLancer.Net
                     var authKind = (AuthenticationKind)authKindByte;
                     if (authKind == AuthenticationKind.GUID)
                     {
-                        ConnectInternal(new(peer.Address, peer.Port), new(UUID));
+                        // Create derived guid using server's identifier
+                        Span<byte> data = stackalloc byte[32];
+                        Span<byte> hashed = stackalloc byte[32];
+                        UUID.TryWriteBytes(data);
+                        var serverData = data.Slice(16);
+                        for (int i = 0; i < 16; i++)
+                        {
+                            if (!additional.TryGetByte(out serverData[i]))
+                            {
+                                OnDisconnected(DisconnectReason.ConnectionError, "Bad authentication handshake");
+                                return;
+                            }
+                        }
+                        HMACSHA256.HashData(data.Slice(0, 16), serverData, hashed);
+                        var serverGuid = new Guid(hashed.Slice(0, 16));
+                        ConnectInternal(new(peer.Address, peer.Port), new(serverGuid));
                     }
                     else if(additional.TryGetString(out var url))
                     {

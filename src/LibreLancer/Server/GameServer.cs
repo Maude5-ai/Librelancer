@@ -33,6 +33,7 @@ namespace LibreLancer.Server
         public string? LoginUrl = null;
         public int MaxAccountCharacters = 10;
         public bool EnableRateLimiting = true;
+        public bool UseDatabase = true;
 
         public bool SendDebugInfo = false;
         public string DebugInfo { get; private set; } = null!;
@@ -58,6 +59,7 @@ namespace LibreLancer.Server
 
         public List<Player> ConnectedPlayers = [];
         public Player? LocalPlayer;
+        public Guid ServerGuid;
 
         public ConcurrentHashSet<long> CharactersInUse = [];
 
@@ -341,13 +343,21 @@ namespace LibreLancer.Server
             Worlds = new WorldProvider(this);
             serverTiming = Stopwatch.StartNew();
             Limits = new(serverTiming, EnableRateLimiting);
-            Database = new ServerDatabase(this);
+            if (UseDatabase)
+            {
+                Database = new ServerDatabase(this);
+                var sg = Database.GetDbIdentifier();
+                sg.Wait();
+                ServerGuid = sg.Result;
+                if (sg.Exception != null)
+                    throw sg.Exception;
+            }
             Listener?.Start();
             updateRunner = new ParallelActionRunner(ThreadCount, "Server Update Worker");
             processingLoop = new FixedTimestepLoop(Process);
             processingLoop.Start();
             Listener?.Stop();
-            Database.Dispose();
+            Database?.Dispose();
             Database = null!;
         }
     }

@@ -254,5 +254,7 @@ public class PacketWriter
 
     public void Put(byte[] data, int offset, int length) => writer.Put(data, offset, length);
 
+    public void Put(ReadOnlySpan<byte> bytes) => writer.Put(bytes);
+
     public byte[] GetCopy() => writer.CopyData();
 }

@@ -14,6 +14,7 @@ using LibreLancer.Net.Protocol.RpcPackets;
 using LibreLancer.Server;
 using LiteNetLib;
 using LiteNetLib.Utils;
+using Microsoft.VisualBasic;
 
 namespace LibreLancer.Net
 {
@@ -133,6 +134,9 @@ namespace LibreLancer.Net
                     else
                     {
                         dw.Put((byte)AuthenticationKind.GUID);
+                        Span<byte> guidBytes = stackalloc byte[16];
+                        game.ServerGuid.TryWriteBytes(guidBytes);
+                        dw.Put(guidBytes);
                     }
                     FLLog.Debug("Server", "Sending login info");
                     limiter.Disconnect(ipKey);

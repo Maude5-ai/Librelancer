@@ -115,6 +115,25 @@ namespace LibreLancer.Server
             actionQueueTask = Task.Run(ProcessTaskQueue);
 		}
 
+        public async Task<Guid> GetDbIdentifier()
+        {
+            return await Run(async () =>
+            {
+                await using var ctx = CreateDbContext();
+
+                var guid = Guid.NewGuid();
+
+                await ctx.Database.ExecuteSqlInterpolatedAsync(
+                    $"""
+                     INSERT INTO DatabaseInfo (Id, DatabaseGuid)
+                     VALUES (1, {guid})
+                     ON CONFLICT(Id) DO NOTHING;
+                     """);
+
+                return (await ctx.DatabaseInfo.SingleAsync()).DatabaseGuid;
+            });
+        }
+
         // RunContinuationsAsynchronously seems to avoid deadlocks
         internal Task<T> Run<T>(Func<Task<T>> func)
         {
