@@ -756,12 +756,14 @@ public class TestingApi
     {
     }
 
-    public void DeleteCharacter()
+    public void DeleteCharacter(Closure onResult)
     {
+        onResult.Call(true);
     }
 
-    public void NewCharacter(string name, int index)
+    public void NewCharacter(string name, int index, Closure onResult)
     {
+        onResult.Call(true);
     }
 
     public KnownNavmapBaseList GetKnownNavmapBases() =>

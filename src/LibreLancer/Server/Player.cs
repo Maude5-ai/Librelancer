@@ -1070,6 +1070,16 @@ namespace LibreLancer.Server
             try
             {
                 FLLog.Info("Server", "Account logged in");
+                var d = Game.GetRateLimitDelay(this);
+                if (d > 0)
+                {
+                    FLLog.Debug("Server", $"Waiting {d}ms, rate limited.");
+                    await Task.Delay(d);
+                }
+                if (!Client.Connected)
+                {
+                    return;
+                }
                 CharacterList = (await Game.Database.PlayerLogin(playerGuid))!;
 
                 if (CharacterList == null)
@@ -1140,6 +1150,14 @@ namespace LibreLancer.Server
 
         public void EnqueuePacket(IPacket packet)
         {
+            if (inputPackets.Count > 2000)
+            {
+                FLLog.Error("Net",
+                    $"Packet processing stalled or too many packets sent (queue >2000). Force disconnect {Character?.Name ?? "null"}");
+                Client.Disconnect(DisconnectReason.ConnectionError);
+                Disconnected();
+                return;
+            }
             inputPackets.Post(packet);
         }
 
@@ -1170,6 +1188,16 @@ namespace LibreLancer.Server
 
         public async Task ProcessPacketDirect(IPacket packet)
         {
+            if (packet is IServerPlayer_CreateNewCharacterPacket ||
+                packet is IServerPlayer_DeleteCharacterPacket)
+            {
+                var d = Game.GetRateLimitDelay(this);
+                if (d > 0)
+                {
+                    FLLog.Debug("Player", "Rate limiting character create/delete");
+                    await Task.Delay(d);
+                }
+            }
             if (ResponseHandler.HandlePacket(packet))
                 return;
             if (await GeneratedProtocol.HandleIServerPlayer(packet, this, Client))

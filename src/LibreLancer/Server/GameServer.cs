@@ -246,10 +246,48 @@ namespace LibreLancer.Server
         private int slowCount = 0;
         private ParallelActionRunner updateRunner = null!;
 
+        private Stopwatch serverTiming = null!;
+        private Lock rateLimitLock = new();
+        private Dictionary<IPKey, long> rateLimits = new();
+
+        public int GetRateLimitDelay(Player player)
+        {
+            lock (rateLimitLock)
+            {
+                var curT = serverTiming.ElapsedMilliseconds;
+                var t = rateLimits.GetValueOrDefault(player.Key, 0L);
+                var delay = (t - curT);
+                rateLimits[player.Key] = serverTiming.ElapsedMilliseconds + 2000;
+                FLLog.Debug("Client", $"Delay: {delay} from {t} (curr: {curT})");
+                return (int)(delay > 0 ? delay : 0);
+            }
+        }
+
+        void CleanRateDelay(long t)
+        {
+            lock (rateLimitLock)
+            {
+                var allKeys = rateLimits.Keys.ToArray();
+                foreach (var k in allKeys)
+                {
+                    if (rateLimits[k] < t)
+                        rateLimits.Remove(k);
+                }
+            }
+        }
+
+        private long lastRateLimitClean = 0;
+
         private void Process(TimeSpan time, TimeSpan totalTime, uint currentTick, int step)
         {
             CurrentTick = currentTick;
             var startTime = serverTiming.Elapsed;
+            var cleanT = serverTiming.ElapsedMilliseconds;
+            if (serverTiming.ElapsedMilliseconds - lastRateLimitClean > 5000)
+            {
+                Task.Run(() => CleanRateDelay(cleanT));
+                lastRateLimitClean = cleanT;
+            }
             while (!localPackets.IsEmpty && localPackets.TryDequeue(out var local))
                 LocalPlayer!.ProcessPacketDirect(local);
             if (worldRequests.Count > 0 && worldRequests.TryDequeue(out var a))
@@ -318,8 +356,6 @@ namespace LibreLancer.Server
             }
             if (!running) processingLoop.Stop();
         }
-
-        private Stopwatch serverTiming = null!;
 
         private void GameThread()
         {
