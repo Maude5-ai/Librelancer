@@ -92,22 +92,37 @@ namespace LibreLancer.Net
                     request.Reject(dw);
                     return;
                 }
-                if (!string.IsNullOrEmpty(game.LoginUrl))
+                var reqReader = new PacketReader(request.Data);
+                if (!AuthenticationInfo.TryGet(reqReader, out var auth))
                 {
-                    var reqReader = new PacketReader(request.Data);
-                    if (!reqReader.TryGetString(out var token))
+                    var dw = new PacketWriter();
+                    dw.Put(DisconnectReason.AuthenticationInfo);
+                    if (!string.IsNullOrEmpty(game.LoginUrl))
                     {
-                        var dw = new PacketWriter();
-                        dw.Put(DisconnectReason.TokenRequired);
+                        dw.Put((byte)AuthenticationKind.Token);
                         dw.Put(game.LoginUrl);
-                        FLLog.Debug("Server", "Sending TokenRequired");
+                    }
+                    else
+                    {
+                        dw.Put((byte)AuthenticationKind.GUID);
+                    }
+                    FLLog.Debug("Server", "Sending login info");
+                    request.Reject(dw);
+                }
+                else if(!string.IsNullOrEmpty(game.LoginUrl))
+                {
+                    if (auth.Kind != AuthenticationKind.Token)
+                    {
+                        FLLog.Info("Login", $"Login failed for {request.RemoteEndPoint}");
+                        var dw = new PacketWriter();
+                        dw.Put(DisconnectReason.LoginError);
                         request.Reject(dw);
                     }
                     else
                     {
                         Task.Run(async () =>
                         {
-                            var guid = await http.VerifyToken(game.LoginUrl, token);
+                            var guid = await http.VerifyToken(game.LoginUrl, auth.GetString());
                             if (guid == Guid.Empty)
                             {
                                 FLLog.Info("Login", $"Login failed for {request.RemoteEndPoint}");
@@ -131,9 +146,24 @@ namespace LibreLancer.Net
                         });
                     }
                 }
+                else if (auth.TryGetGuid(out var authGuid))
+                {
+                    var peer = request.Accept();
+                    var remote = new RemotePacketClient(peer);
+                    var p = new Player(remote, game, authGuid);
+                    peer.Tag = p;
+                    lock (game.ConnectedPlayers)
+                    {
+                        game.ConnectedPlayers.Add(p);
+                    }
+                    Task.Run(async () => await p.OnLoggedIn());
+                }
                 else
                 {
-                    RequestPlayerGuid(request.Accept());
+                    FLLog.Info("Login", $"Invalid GUID for {request.RemoteEndPoint}");
+                    var dw = new PacketWriter();
+                    dw.Put(DisconnectReason.ConnectionError);
+                    request.Reject(dw);
                 }
             };
             listener.PeerConnectedEvent += peer =>
@@ -196,41 +226,8 @@ namespace LibreLancer.Net
                 {
                     var reader = new PacketReader(msg);
                     var pkt = Packets.Read(reader);
-                    if (peer.Tag is DateTime)
-                    {
-                        if (pkt is AuthenticationReplyPacket auth)
-                        {
-                            if (auth.Guid == Guid.Empty)
-                            {
-                                var dw = new PacketWriter();
-                                dw.Put(DisconnectReason.LoginError);
-                                peer.Disconnect(dw);
-                            }
-                            else
-                            {
-                                var remote = new RemotePacketClient(peer);
-                                var p = new Player(remote, game, auth.Guid);
-                                peer.Tag = p;
-                                lock (game.ConnectedPlayers)
-                                {
-                                    game.ConnectedPlayers.Add(p);
-                                }
-
-                                Task.Run(async () => await p.OnLoggedIn());
-                            }
-                        }
-                        else
-                        {
-                            var dw = new PacketWriter();
-                            dw.Put(DisconnectReason.ConnectionError);
-                            peer.Disconnect(dw);
-                        }
-                    }
-                    else
-                    {
-                        var player = (Player) peer.Tag;
-                        player.EnqueuePacket(pkt);
-                    }
+                    var player = (Player) peer.Tag;
+                    player.EnqueuePacket(pkt);
                 }
 #if !DEBUG
                 catch (Exception e)
@@ -277,14 +274,6 @@ namespace LibreLancer.Net
             Server.Stop();
             broadcastServer.Stop();
         }
-
-        private void RequestPlayerGuid(NetPeer peer)
-        {
-            var msg = new PacketWriter();
-            Packets.Write(msg, new GuidAuthenticationPacket());
-            peer.Send(msg, DeliveryMethod.ReliableOrdered);
-			peer.Tag = DateTime.Now.AddSeconds(15);
-		}
 
 		public void Stop()
         {

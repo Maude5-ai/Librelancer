@@ -162,13 +162,13 @@ namespace LibreLancer.Net
             ConnectInternal(endPoint, null);
         }
 
-        private void ConnectInternal(IPEndPoint endPoint, string? token)
+        private void ConnectInternal(IPEndPoint endPoint, AuthenticationInfo? token)
         {
             var dw = new PacketWriter();
             dw.Put(AppIdentifier + GeneratedProtocol.PROTOCOL_HASH);
-            if (!string.IsNullOrEmpty(token))
+            if (token != null)
             {
-                dw.Put(token);
+                token.Value.Put(dw);
             }
 
             if (!running)
@@ -284,13 +284,24 @@ namespace LibreLancer.Net
 
                 if (token != null)
                 {
-                    ConnectInternal(loginEndpoint, token);
+                    ConnectInternal(loginEndpoint, new(token));
                 }
                 else
                 {
                     FLLog.Error("Http", "Login failed");
                     mainThread.QueueUIThread(() => AuthenticationRequired?.Invoke(true));
                 }
+            });
+        }
+
+        void OnDisconnected(DisconnectReason reason, string extraInfo)
+        {
+            mainThread.QueueUIThread(() =>
+            {
+                FLLog.Info("Net", $"Remote disconnected for reason '{reason}' ({extraInfo})");
+                Disconnected?.Invoke(reason == DisconnectReason.Unknown
+                    ? DisconnectReason.ConnectionError
+                    : reason);
             });
         }
 
@@ -393,29 +404,7 @@ namespace LibreLancer.Net
 #endif
                     var reader = new PacketReader(msg);
                     var pkt = Packets.Read(reader);
-                    if (connecting)
-                    {
-                        if (pkt is GuidAuthenticationPacket)
-                        {
-                            FLLog.Info("Net", "GUID Request Received");
-                            SendPacket(new AuthenticationReplyPacket() { Guid = this.UUID },
-                                PacketDeliveryMethod.ReliableOrdered);
-                        }
-                        else if (pkt is LoginSuccessPacket)
-                        {
-                            FLLog.Info("Client", "Login success");
-                            connecting = false;
-                        }
-                        else
-                        {
-                            FLLog.Info("Net", $"Invalid login packet {pkt.GetType()}");
-                            client.DisconnectAll();
-                        }
-                    }
-                    else
-                    {
-                        packets.Enqueue(pkt);
-                    }
+                    packets.Enqueue(pkt);
 #if !DEBUG
                 }
 
@@ -427,40 +416,51 @@ namespace LibreLancer.Net
 #endif
             };
 
+            listener.PeerConnectedEvent += (peer) =>
+            {
+                FLLog.Info("Client", $"Connected to {peer.Address}:{peer.Port}");
+                connecting = false;
+            };
+
             listener.PeerDisconnectedEvent += (peer, info) =>
             {
                 var additional = new PacketReader(info.AdditionalData);
 
-                if (additional.TryGetDisconnectReason(out var reason) &&
-                    connecting &&
-                    reason == DisconnectReason.TokenRequired &&
-                    additional.TryGetString(out var url))
+                if (additional.TryGetDisconnectReason(out var reason)
+                    && connecting
+                    && reason == DisconnectReason.AuthenticationInfo
+                    && additional.TryGetByte(out var authKindByte))
                 {
-                    loginEndpoint = new IPEndPoint(peer.Address, peer.Port);
-                    Task.Run(async () =>
+                    var authKind = (AuthenticationKind)authKindByte;
+                    if (authKind == AuthenticationKind.GUID)
                     {
-                        loginServer = await http.LoginServerInfo(url);
-
-                        if (loginServer != null)
+                        ConnectInternal(new(peer.Address, peer.Port), new(UUID));
+                    }
+                    else if(additional.TryGetString(out var url))
+                    {
+                        loginEndpoint = new IPEndPoint(peer.Address, peer.Port);
+                        Task.Run(async () =>
                         {
-                            mainThread.QueueUIThread(() => AuthenticationRequired?.Invoke(false));
-                        }
-                        else
-                        {
-                            FLLog.Error("Net", "Remote disconnected with invalid login server");
-                            mainThread.QueueUIThread(() => { Disconnected?.Invoke(DisconnectReason.ConnectionError); });
-                        }
-                    });
+                            loginServer = await http.LoginServerInfo(url);
+                            if (loginServer != null)
+                            {
+                                mainThread.QueueUIThread(() => AuthenticationRequired?.Invoke(false));
+                            }
+                            else
+                            {
+                                FLLog.Error("Net", "Remote disconnected with invalid login server");
+                                mainThread.QueueUIThread(() => { Disconnected?.Invoke(DisconnectReason.ConnectionError); });
+                            }
+                        });
+                    }
+                    else
+                    {
+                        OnDisconnected(DisconnectReason.ConnectionError, "Bad authentication handshake");
+                    }
                 }
                 else
                 {
-                    mainThread.QueueUIThread(() =>
-                    {
-                        FLLog.Info("Net", $"Remote disconnected for reason '{reason}' ({info.Reason})");
-                        Disconnected?.Invoke(reason == DisconnectReason.Unknown
-                            ? DisconnectReason.ConnectionError
-                            : reason);
-                    });
+                    OnDisconnected(reason, info.Reason.ToString());
                 }
             };
 

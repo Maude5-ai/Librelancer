@@ -334,5 +334,7 @@ public struct PacketReader
 
     public bool TryGetUInt(out uint result) => reader.TryGetUInt(out result);
 
+    public bool TryGetByte(out byte result) => reader.TryGetByte(out result);
+
     public byte[] GetRemainingBytes() => reader.GetRemainingBytes();
 }

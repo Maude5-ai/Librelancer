@@ -1084,7 +1084,6 @@ namespace LibreLancer.Server
                     return;
                 }
 
-                Client.SendPacket(new LoginSuccessPacket(), PacketDeliveryMethod.ReliableOrdered);
                 Client.SendPacket(new OpenCharacterListPacket()
                 {
                     Info = new CharacterSelectInfo()
