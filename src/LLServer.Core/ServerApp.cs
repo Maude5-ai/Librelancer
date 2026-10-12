@@ -48,6 +48,7 @@ public class ServerApp(ServerConfig config)
             LoginUrl = Config.LoginUrl,
             MaxAccountCharacters = Config.MaxAccountCharacters > 0 ? Config.MaxAccountCharacters : 1,
             EnableRateLimiting = Config.EnableRateLimiting,
+            CharacterMissions = new(Config.CharacterMissions ?? new(), StringComparer.OrdinalIgnoreCase),
             Listener =
             {
                 Port = Config.Port > 0 ? Config.Port : LNetConst.DefaultPort

@@ -61,6 +61,10 @@ namespace LibreLancer.Server
         public Player? LocalPlayer;
         public Guid ServerGuid;
 
+        // Character name -> mission INI path (relative to the game data folder).
+        // Lets a multiplayer character run a scripted mission server-side.
+        public Dictionary<string, string> CharacterMissions = new(StringComparer.OrdinalIgnoreCase);
+
         public ConcurrentHashSet<long> CharactersInUse = [];
 
         private bool needLoadData = true;
@@ -269,6 +273,15 @@ namespace LibreLancer.Server
                 LocalPlayer?.UpdateMissionRuntime(time.TotalSeconds);
             }
             LocalPlayer?.RunSave();
+            // Net players can hold mission runtimes too (per-character
+            // assignment); pump them or their triggers never fire. RunSave
+            // stays SP-only: Act_Save has no meaning for a net character.
+            foreach (var netPlayer in GetConnectedPlayers())
+            {
+                if (netPlayer == LocalPlayer) continue;
+                if (!(netPlayer.Space?.World?.Paused ?? false))
+                    netPlayer.UpdateMissionRuntime(time.TotalSeconds);
+            }
             debugInfoForFrame = "";
 
             // Copy worlds to array
