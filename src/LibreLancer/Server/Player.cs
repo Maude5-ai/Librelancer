@@ -817,6 +817,10 @@ namespace LibreLancer.Server
             {
                 InitStory(sg);
             }
+            else
+            {
+                TryStartAssignedMission();
+            }
 
             rpcClient.UpdateCharacterProgress((int) Character.Rank, (long) (Story?.NextLevelWorth ?? -1));
             AllowedDockUpdate();
@@ -948,6 +952,37 @@ namespace LibreLancer.Server
         }
 
         private uint[] loadTriggers = null!;
+
+        // Per-character mission assignment for net players: the server
+        // operator maps a character name to a mission INI and the mission
+        // runs server-side, like StartRandomMission but script-driven. The
+        // runtime has no Story, so Act_ChangeState SUCCEED tears it down
+        // via the null-Story branch of MissionSuccess. Mission scripts for
+        // net characters must avoid SP-only actions (Act_Save, story
+        // advancement) and the world events still routed to LocalPlayer
+        // only (loot acquired / launch complete / jumpers).
+        private void TryStartAssignedMission()
+        {
+            if (SinglePlayer || Name == null) return;
+            if (!Game.CharacterMissions.TryGetValue(Name, out var missionFile)) return;
+            try
+            {
+                var missionIni = Game.GameData.Items.Ini.LoadMissionIni(missionFile);
+                if (missionIni == null)
+                {
+                    FLLog.Warning("Mission", $"Assigned mission '{missionFile}' for '{Name}' not found in game data");
+                    return;
+                }
+                msnRuntime = new MissionRuntime(new(missionIni, Game.GameData.Items), this, []);
+                msnRuntime.Update(0.0);
+                FLLog.Info("Mission", $"Assigned mission '{missionFile}' started for '{Name}'");
+            }
+            catch (Exception ex)
+            {
+                FLLog.Warning("Mission", $"Assigned mission '{missionFile}' failed to start for '{Name}': {ex.Message}");
+                msnRuntime = null;
+            }
+        }
 
         public void LoadMission()
         {
@@ -1663,6 +1698,7 @@ namespace LibreLancer.Server
                 foreach (var player in Game.AllPlayers.Where(x => x != this))
                     player.RpcClient.OnPlayerLeave(ID, Name);
                 Game.CharactersInUse.Remove(Character.ID);
+                msnRuntime = null;
 
                 Game.ServerEvents.Enqueue(new ServerEvent
                 {

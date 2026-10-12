@@ -96,11 +96,13 @@ public class FreelancerData
 
     public SpecificNPCIni SpecificNPCs = null!;
 
-    public MissionIni? LoadMissionIni(StoryMission item)
+    public MissionIni? LoadMissionIni(StoryMission item) => LoadMissionIni(item.File);
+
+    public MissionIni? LoadMissionIni(string file)
     {
-        if (VFS.FileExists(Freelancer.DataPath + item.File))
+        if (VFS.FileExists(Freelancer.DataPath + file))
         {
-            var m = new MissionIni(Freelancer.DataPath + item.File, VFS);
+            var m = new MissionIni(Freelancer.DataPath + file, VFS);
             if (m.Info?.NpcShipFile != null)
             {
                 m.ShipIni = new NPCShipIni(Freelancer.DataPath + m.Info.NpcShipFile, VFS);
