@@ -18,6 +18,10 @@ namespace LibreLancer.Server.Components
         public float CurrentHealth { get; set; }
 
         public bool Invulnerable { get; set; }
+        // Fraction of max hull an Invulnerable ship cannot drop below.
+        // Act_Invulnerable's 4th argument sets it (M01A uses 0.9/0.99 for the
+        // convoy); 0.09 is the engine's historical default when unspecified.
+        public float InvulnerableThreshold { get; set; } = 0.09f;
 
         public bool InfiniteHealth { get; set; }
 
@@ -143,9 +147,9 @@ namespace LibreLancer.Server.Components
                 npc.TakingDamage(hullDamage);
             }
 
-            if (Invulnerable && CurrentHealth < (MaxHealth * 0.09f))
+            if (Invulnerable && CurrentHealth < (MaxHealth * InvulnerableThreshold))
             {
-                CurrentHealth = MaxHealth * 0.09f;
+                CurrentHealth = MaxHealth * InvulnerableThreshold;
             }
 
             var fuseRunner = Parent.GetComponent<SFuseRunnerComponent>();

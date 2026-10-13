@@ -415,6 +415,8 @@ namespace LibreLancer.Missions.Actions
                 if (tgt != null && tgt.TryGetComponent<SHealthComponent>(out var health))
                 {
                     health.Invulnerable = Invulnerable;
+                    if (Threshold > float.Epsilon)
+                        health.InvulnerableThreshold = Threshold;
                 }
             });
         }
