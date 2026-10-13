@@ -250,7 +250,12 @@ public class Cnd_TLExited :
 
     protected override bool EventCheck(TLExitedEvent ev, MissionRuntime runtime, ActiveCondition self)
     {
-        if (!IdEqual(Source, ev.Ship) || !IdEqual(StartRing, ev.Ring))
+        if (!IdEqual(Source, ev.Ship))
+            return false;
+        // "ANY" is the script's wildcard for the exit ring (m01a:
+        // "Cnd_TLExited = transport1, ANY, Li01_Trade_Lane_Ring_30" must
+        // fire wherever the disrupted lane throws the ship out).
+        if (!IdEqual(StartRing, "ANY") && !IdEqual(StartRing, ev.Ring))
             return false;
 
         return true;
