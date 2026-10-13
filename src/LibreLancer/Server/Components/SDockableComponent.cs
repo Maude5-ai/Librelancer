@@ -653,10 +653,15 @@ namespace LibreLancer.Server.Components
                        x.Ship.Flags.HasFlag(GameObjectFlags.Exists));
         }
 
+        // An open door does not make the slot unavailable: lane occupancy is
+        // what matters, and reservedUndockIndices/undockers/activeDockings in
+        // IsUndockIndexBusy already track that. The door's 10s close timer
+        // otherwise blocks every launch behind another player (ships stream
+        // through open rings in vanilla), and a failed reservation aborts the
+        // launch outright, stranding the second player at the base.
         public bool IsUndockIndexAvailable(int index) =>
             index >= 0 &&
             index < DockPoints.Length &&
-            !DockPoints[index].Open &&
             !IsUndockIndexBusy(index) &&
             TryGetSpawnPoint(index, out _);
 
