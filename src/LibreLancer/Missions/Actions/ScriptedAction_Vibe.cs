@@ -31,8 +31,8 @@ namespace LibreLancer.Missions.Actions
         {
             runtime.Player.MissionWorldAction(() =>
             {
-                var tgt = runtime.Player.Space!.World.GameWorld.GetObject(target);
-                var o = runtime.Player.Space.World.GameWorld.GetObject(other);
+                var tgt = runtime.GetWorldObject(runtime.Player.Space!, target);
+                var o = runtime.GetWorldObject(runtime.Player.Space, other);
 
                 if (tgt != null && o != null && tgt.TryGetComponent<SRepComponent>(out var rep))
                 {

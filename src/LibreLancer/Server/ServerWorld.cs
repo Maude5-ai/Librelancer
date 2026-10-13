@@ -167,8 +167,10 @@ namespace LibreLancer.Server
                     // Notify mission system that loot has been acquired after removal
                     if (obj.TryGetComponent<SPlayerComponent>(out var playerComponent))
                     {
+                        // Route to the tractoring player's own runtime - their
+                        // mission script addresses them as "Player".
                         actions.Enqueue(() =>
-                            Server.LocalPlayer?.MissionRuntime?.LootAcquired(pickup.Nickname!, "Player"));
+                            playerComponent.Player?.MissionRuntime?.LootAcquired(pickup.Nickname!, "Player"));
                     }
                 }
                 else
@@ -288,15 +290,27 @@ namespace LibreLancer.Server
 
         public void LaunchComplete(GameObject obj)
         {
+            // A player's launch goes to their own runtime, which addresses
+            // its owner as "Player" (the LocalPlayer ship is also literally
+            // nicknamed "Player", so single-player behavior is unchanged).
+            if (obj.TryGetComponent<SPlayerComponent>(out var pc))
+            {
+                pc.Player?.MissionRuntime?.LaunchComplete("Player");
+                return;
+            }
             if (!string.IsNullOrWhiteSpace(obj.Nickname))
             {
-                Server.LocalPlayer?.MissionRuntime?.LaunchComplete(obj.Nickname);
+                // Mission NPCs: any mission in this world may watch them.
+                foreach (var p in Players)
+                    p.Key.MissionRuntime?.LaunchComplete(obj.Nickname);
+                if (Server.LocalPlayer != null && !Players.ContainsKey(Server.LocalPlayer))
+                    Server.LocalPlayer.MissionRuntime?.LaunchComplete(obj.Nickname);
             }
         }
 
-        public JumperNpc[] GatherJumpers()
+        public JumperNpc[] GatherJumpers(Player forPlayer)
         {
-            var msn = Server.LocalPlayer?.MissionRuntime;
+            var msn = forPlayer.MissionRuntime;
 
             if (msn == null)
             {
@@ -570,11 +584,11 @@ namespace LibreLancer.Server
             return obj;
         }
 
-        public void SpawnJumpers(string target, JumperNpc[] jumpers)
+        public void SpawnJumpers(string target, JumperNpc[] jumpers, Player forPlayer)
         {
             foreach (var j in jumpers)
             {
-                NPCs.SpawnJumper(j, Server.LocalPlayer?.MissionRuntime!, target);
+                NPCs.SpawnJumper(j, forPlayer.MissionRuntime!, target);
             }
         }
 
@@ -1228,14 +1242,26 @@ namespace LibreLancer.Server
         private double noPlayersTime;
         private double maxNoPlayers = 2.0;
 
+        private bool PlayerHoldsMissionSolarBaseHere(Player? player) =>
+            player?.MissionRuntime != null &&
+            player.Space == null &&
+            player.MissionRuntime.IsMissionSolarBase(player.Base) &&
+            System.Nickname.Equals(player.System, StringComparison.OrdinalIgnoreCase);
+
         private bool ShouldKeepAliveForMissionSolarBase()
         {
-            var player = Server.LocalPlayer;
-            return PlayerCount == 0 &&
-                   player?.MissionRuntime != null &&
-                   player.Space == null &&
-                   player.MissionRuntime.IsMissionSolarBase(player.Base) &&
-                   System.Nickname.Equals(player.System, StringComparison.OrdinalIgnoreCase);
+            if (PlayerCount != 0)
+                return false;
+            if (PlayerHoldsMissionSolarBaseHere(Server.LocalPlayer))
+                return true;
+            // Any connected player's mission can hold this world alive, not
+            // just the single-player LocalPlayer.
+            foreach (var p in Server.AllPlayers)
+            {
+                if (p != Server.LocalPlayer && PlayerHoldsMissionSolarBaseHere(p))
+                    return true;
+            }
+            return false;
         }
 
         private void FreezeShipsForMissionSolarBase()

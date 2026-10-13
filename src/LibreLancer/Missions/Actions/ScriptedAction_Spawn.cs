@@ -66,7 +66,7 @@ namespace LibreLancer.Missions.Actions
         {
             runtime.Player.MissionWorldAction(() =>
             {
-                var obj = runtime.Player.Space!.World.GameWorld.GetObject(Object);
+                var obj = runtime.GetWorldObject(runtime.Player.Space!, Object);
 
                 if (obj == null)
                 {
@@ -180,7 +180,7 @@ namespace LibreLancer.Missions.Actions
             if (string.IsNullOrWhiteSpace(relativePosition.ObjectName))
                 return false;
 
-            var relObj = runtime.Player.Space!.World.GameWorld.GetObject(relativePosition.ObjectName);
+            var relObj = runtime.GetWorldObject(runtime.Player.Space!, relativePosition.ObjectName);
             if (relObj == null)
                 return false;
 
@@ -404,7 +404,7 @@ namespace LibreLancer.Missions.Actions
 
                 if (!string.IsNullOrWhiteSpace(lootDef.RelPosObj))
                 {
-                    var obj = world.GameWorld.GetObject(lootDef.RelPosObj);
+                    var obj = runtime.GetWorldObject(world, lootDef.RelPosObj);
 
                     if (obj == null)
                     {
@@ -466,7 +466,7 @@ namespace LibreLancer.Missions.Actions
             runtime.ObjectDestroyed(ship.Nickname);
             runtime.Player.MissionWorldAction(() =>
             {
-                var obj = runtime.Player.Space!.World.GameWorld.GetObject(Target);
+                var obj = runtime.GetWorldObject(runtime.Player.Space!, Target);
                 if (obj == null)
                 {
                     FLLog.Warning("Mission", $"Act_Destroy could not find `{Target}`");

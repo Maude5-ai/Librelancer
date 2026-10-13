@@ -958,7 +958,7 @@ public class Cnd_InTradelane : ScriptedCondition
             if (!runtime.GetSpace(out var space))
                 return false;
 
-            var obj = space.World.GameWorld.GetObject(Ship);
+            var obj = runtime.GetWorldObject(space, Ship);
             if (obj == null)
                 return !InTL;
 
@@ -1015,7 +1015,7 @@ public class Cnd_HealthDec : ScriptedCondition
     {
         if(!runtime.GetSpace(out var space))
             return false;
-        var obj = space.World.GameWorld.GetObject(Target);
+        var obj = runtime.GetWorldObject(space, Target);
         if (obj == null)
             return false;
         if (obj.TryGetComponent<SHealthComponent>(out var health))
@@ -1102,7 +1102,7 @@ public class Cnd_DistVecLbl : ScriptedCondition
         bool satisfied = false;
         foreach (var ship in l.Objects)
         {
-            var obj = space.World.GameWorld.GetObject(ship);
+            var obj = runtime.GetWorldObject(space, ship);
             if (obj == null)
             {
                 continue;
@@ -1171,7 +1171,7 @@ public class Cnd_DistVec : ScriptedCondition
     {
         if (!runtime.GetSpace(out var space))
             return false;
-        var obj = space.World.GameWorld.GetObject(SourceShip);
+        var obj = runtime.GetWorldObject(space, SourceShip);
         if (obj == null)
             return false;
         bool isInside = Vector3.Distance(obj.Transform.Position, Position) <= Distance;
@@ -1247,8 +1247,8 @@ public class Cnd_DistShip : ScriptedCondition
     {
         if (!runtime.GetSpace(out var space))
             return false;
-        var obj = space.World.GameWorld.GetObject(SourceShip);
-        var obj2 = space.World.GameWorld.GetObject(DestObject);
+        var obj = runtime.GetWorldObject(space, SourceShip);
+        var obj2 = runtime.GetWorldObject(space, DestObject);
         if (obj == null || obj2 == null)
             return false;
         var isInside = Vector3.Distance(obj.Transform.Position, obj2.Transform.Position) <= Distance;

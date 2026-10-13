@@ -177,7 +177,7 @@ namespace LibreLancer.Missions.Actions
             {
                 runtime.Player.MissionWorldAction(() =>
                 {
-                    var obj = runtime.Player.Space!.World.GameWorld.GetObject(Ship);
+                    var obj = runtime.GetWorldObject(runtime.Player.Space!, Ship);
                     if (obj == null)
                     {
                         FLLog.Warning("Mission",
