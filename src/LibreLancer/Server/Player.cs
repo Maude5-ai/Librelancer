@@ -1839,8 +1839,16 @@ namespace LibreLancer.Server
 
                 Baseside = null;
                 Base = null;
-                world.EnqueueAction(() =>
+                // Lane contention at launch is transient: another ship still
+                // mid-undock, or a timed-out client's ship awaiting despawn.
+                // Retry for a few seconds instead of aborting, which would
+                // strand the player at the base with no SpawnPlayer arriving.
+                var launchRetries = 60; // x 0.25s = ~15s of patience
+                var warnedBusy = false;
+                Action launchAttempt = null!;
+                launchAttempt = () =>
                 {
+                    if (Space == null) return; // disconnected while waiting to launch
                     GameObject? undockFrom = null;
                     if (obj != null)
                     {
@@ -1875,6 +1883,16 @@ namespace LibreLancer.Server
                     {
                         if (!sd!.TryReserveUndockIndex(out undockIndex))
                         {
+                            if (launchRetries-- > 0)
+                            {
+                                if (!warnedBusy)
+                                {
+                                    warnedBusy = true;
+                                    FLLog.Info("Server", $"Launch lane busy at {undockFrom}; retrying for '{Name}'");
+                                }
+                                world.DelayAction(launchAttempt, 0.25);
+                                return;
+                            }
                             FLLog.Warning("Server", $"Could not reserve spawn point for {undockFrom}");
                             return;
                         }
@@ -1896,7 +1914,17 @@ namespace LibreLancer.Server
                     rpcClient.SpawnPlayer(ID, System, world.GameWorld.CrcTranslation.ToArray(), Objective, Position,
                         Orientation, Character!.GetDestroyedParts(), world.CurrentTick);
                     var pship = world.SpawnPlayer(this, Position, Orientation);
-                    if (pship == null) return; // player disconnected mid-launch
+                    if (pship == null)
+                    {
+                        // Player disconnected mid-launch. The undock index was
+                        // reserved above and UndockShip will never transfer it
+                        // to the self-cleaning undockers list, so release it
+                        // here or a ring's single lane stays reserved and every
+                        // later launch at this base fails until a world reset.
+                        if (undockFrom != null)
+                            sd!.ReleaseUndockIndex(undockIndex);
+                        return;
+                    }
                     world.Population.PopulateInitialAroundPlayer(pship);
 
                     if (undockFrom != null)
@@ -1907,7 +1935,8 @@ namespace LibreLancer.Server
                     }
 
                     HandleSpaceEntry();
-                });
+                };
+                world.EnqueueAction(launchAttempt);
             }, msnPreload);
         }
 
