@@ -1803,7 +1803,7 @@ namespace LibreLancer.Server
                         jumpPending = false;
                     }
                 });
-                world.DelayAction(() => { world.SpawnJumpers(target, jumpers); }, 4);
+                world.DelayAction(() => { world.SpawnJumpers(target, jumpers, this); }, 4);
             }, msnPreload);
         }
 

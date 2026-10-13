@@ -179,7 +179,7 @@ namespace LibreLancer.Missions
         {
             Player.MissionWorldAction(() =>
             {
-                var obj = Player.Space!.World.GameWorld.GetObject(target);
+                var obj = GetWorldObject(Player.Space!, target);
 
                 if (obj != null)
                 {
@@ -330,6 +330,21 @@ namespace LibreLancer.Missions
         {
             space = Player.Space;
             return space != null;
+        }
+
+        // Resolves a mission-script object name in this runtime's world. The
+        // name "Player" always means the ship of the player who OWNS this
+        // runtime: a world nickname lookup only works for the single-player
+        // LocalPlayer (whose ship is literally nicknamed "Player") and would
+        // find the wrong ship in a shared multiplayer world.
+        public GameObject? GetWorldObject(SpacePlayer space, string name) =>
+            GetWorldObject(space.World, name);
+
+        public GameObject? GetWorldObject(ServerWorld world, string name)
+        {
+            if ("Player".Equals(name, StringComparison.OrdinalIgnoreCase))
+                return world.Players.GetValueOrDefault(Player);
+            return world.GameWorld.GetObject(name);
         }
 
         public void SystemEnter(string system, string ship) =>

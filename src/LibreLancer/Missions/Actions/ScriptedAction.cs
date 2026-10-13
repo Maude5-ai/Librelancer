@@ -42,8 +42,8 @@ namespace LibreLancer.Missions.Actions
 
         protected IEnumerable<GameObject> GetObjects(string labelOrShip, MissionRuntime runtime)
         {
-            var world = runtime.Player.Space?.World?.GameWorld;
-            if (world == null)
+            var sworld = runtime.Player.Space?.World;
+            if (sworld == null)
             {
                 FLLog.Error("Mission", "GetObjects() called outside of space");
                 yield break;
@@ -52,7 +52,7 @@ namespace LibreLancer.Missions.Actions
             {
                 foreach (var s in label.Objects)
                 {
-                    GameObject? obj = world.GetObject(s);
+                    GameObject? obj = sworld.GameWorld.GetObject(s);
                     if (obj != null)
                     {
                         yield return obj;
@@ -61,7 +61,7 @@ namespace LibreLancer.Missions.Actions
             }
             else
             {
-                GameObject? obj = world.GetObject(labelOrShip);
+                GameObject? obj = runtime.GetWorldObject(sworld, labelOrShip);
                 if (obj != null)
                 {
                     yield return obj;
@@ -410,7 +410,7 @@ namespace LibreLancer.Missions.Actions
         {
             runtime.Player.MissionWorldAction(() =>
             {
-                var tgt = runtime.Player.Space!.World.GameWorld.GetObject(Object);
+                var tgt = runtime.GetWorldObject(runtime.Player.Space!, Object);
 
                 if (tgt != null && tgt.TryGetComponent<SHealthComponent>(out var health))
                 {
@@ -640,7 +640,7 @@ namespace LibreLancer.Missions.Actions
         {
             runtime.Player.MissionWorldAction(() =>
             {
-                var gameObj = runtime.Player.Space!.World.GameWorld.GetObject(Tradelane)!;
+                var gameObj = runtime.GetWorldObject(runtime.Player.Space!, Tradelane)!;
                 var firstChild = gameObj.CoreEquipment.Shield;
 
                 if (firstChild != null)
@@ -700,7 +700,7 @@ namespace LibreLancer.Missions.Actions
             runtime.Player.MissionWorldAction(() =>
             {
                 var fuse = runtime.Player.Space!.World.Server.GameData.Items.Fuses.Get(Fuse)!;
-                var gameObj = runtime.Player.Space.World.GameWorld.GetObject(Target);
+                var gameObj = runtime.GetWorldObject(runtime.Player.Space, Target);
 
                 if (gameObj == null)
                 {
@@ -937,7 +937,7 @@ namespace LibreLancer.Missions.Actions
 
                 if (MainObject != null)
                 {
-                    var gameObj = runtime.Player.Space!.World.GameWorld.GetObject(MainObject)!;
+                    var gameObj = runtime.GetWorldObject(runtime.Player.Space!, MainObject)!;
                     mainObject = gameObj;
                 }
 
