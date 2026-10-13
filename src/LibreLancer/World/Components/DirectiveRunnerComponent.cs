@@ -69,6 +69,31 @@ public class DirectiveRunnerComponent(GameObject parent) : GameComponent(parent)
             ? currentDirectives[index + 1]
             : null;
 
+    // A mission script's Dock directive names a destination after the ring
+    // ("Dock = ring, towards"): the lane must carry the ship TOWARD that
+    // object. Pick the lane hardpoint whose next ring lies closer to it -
+    // HpRightLane chains via the ring's Target, HpLeftLane via TargetLeft
+    // (see STradelaneMoveComponent.LaneEntered). Without this the engine
+    // picks the side of the ring the ship happens to be on, so a ship
+    // pushed across the ring plane by combat rides the lane the wrong way
+    // and mission conditions on the transit never match (upstream #334).
+    private static string? TradelaneHardpointTowards(SDockableComponent ring, string towards, GameWorld world)
+    {
+        if (string.IsNullOrWhiteSpace(towards) || ring.Action.Kind != Data.GameData.World.DockKinds.Tradelane)
+            return null;
+        var towardsObj = world.GetObject(towards);
+        if (towardsObj == null)
+            return null;
+        var right = string.IsNullOrWhiteSpace(ring.Action.Target) ? null : world.GetObject(ring.Action.Target);
+        var left = string.IsNullOrWhiteSpace(ring.Action.TargetLeft) ? null : world.GetObject(ring.Action.TargetLeft);
+        if (right == null && left == null)
+            return null;
+        var tp = towardsObj.Transform.Position;
+        var dRight = right == null ? float.MaxValue : Vector3.Distance(right.Transform.Position, tp);
+        var dLeft = left == null ? float.MaxValue : Vector3.Distance(left.Transform.Position, tp);
+        return dRight <= dLeft ? "HpRightLane" : "HpLeftLane";
+    }
+
     private void StartDirective(MissionDirective directive, GameWorld world)
     {
         splineIndex = -1;
@@ -82,7 +107,8 @@ public class DirectiveRunnerComponent(GameObject parent) : GameComponent(parent)
                 {
                     if (tgt.TryGetComponent<SDockableComponent>(out var sd))
                     {
-                        sd.StartDock(Parent, 0, world: world);
+                        sd.StartDock(Parent, 0, world: world,
+                            requestedTradelaneHardpoint: TradelaneHardpointTowards(sd, dock.Towards, world));
                     }
                     else if (tgt.TryGetComponent<CLocalPlayerComponent>(out var pl))
                     {
