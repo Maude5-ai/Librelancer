@@ -41,6 +41,14 @@ public class DirectiveRunnerComponent(GameObject parent) : GameComponent(parent)
     }
 
     private double currentDelay = 0;
+    // Remaining restart attempts for an aborted tradelane Dock directive.
+    private int dockRetryBudget = 0;
+    // The autopilot can take a few ticks to enter Dock behavior after
+    // StartDock; abort detection only arms once it has been seen docking,
+    // with a grace period so a StartDock that never engages falls through
+    // to the old skip-ahead behavior instead of waiting forever.
+    private bool dockEngaged = false;
+    private int dockStartGrace = 0;
 
     public override void Update(double time, GameWorld world)
     {
@@ -102,6 +110,9 @@ public class DirectiveRunnerComponent(GameObject parent) : GameComponent(parent)
         {
             case DockDirective dock:
             {
+                dockRetryBudget = 3;
+                dockEngaged = false;
+                dockStartGrace = 120;
                 var tgt = world.GetObject(dock.Target)!;
                 if (Parent.TryGetComponent<AutopilotComponent>(out _))
                 {
@@ -282,8 +293,9 @@ public class DirectiveRunnerComponent(GameObject parent) : GameComponent(parent)
             case DockDirective dock:
             {
                 var target = world.GetObject(dock.Target);
+                SDockableComponent? dockable = null;
                 if (target != null &&
-                    target.TryGetComponent<SDockableComponent>(out var dockable) &&
+                    target.TryGetComponent(out dockable) &&
                     dockable.IsQueuedForDock(Parent))
                 {
                     break;
@@ -291,9 +303,46 @@ public class DirectiveRunnerComponent(GameObject parent) : GameComponent(parent)
 
                 if (Parent!.TryGetComponent<AutopilotComponent>(out var ap))
                 {
-                    if (ap.CurrentBehavior != AutopilotBehaviors.Dock)
+                    if (ap.CurrentBehavior == AutopilotBehaviors.Dock)
                     {
-                        NextDirective(world);
+                        dockEngaged = true;
+                    }
+                    else if (!dockEngaged)
+                    {
+                        // The autopilot hasn't picked up the dock yet; give it
+                        // a grace window before concluding it never will.
+                        if (--dockStartGrace <= 0)
+                        {
+                            NextDirective(world);
+                        }
+                    }
+                    else
+                    {
+                        // For a tradelane dock, losing the Dock behavior means
+                        // either success (the ship is riding the lane) or a
+                        // transient autopilot abort - which previously looked
+                        // identical, so the directive was skipped and the ship
+                        // strolled to its next order in free flight (#334
+                        // follow-up). Retry aborts a few times before giving
+                        // up to the old behavior.
+                        var isTradelane = dockable != null &&
+                                          dockable.Action.Kind == Data.GameData.World.DockKinds.Tradelane;
+                        if (isTradelane &&
+                            !Parent.TryGetComponent<STradelaneMoveComponent>(out _) &&
+                            dockRetryBudget > 0)
+                        {
+                            dockRetryBudget--;
+                            dockEngaged = false;
+                            dockStartGrace = 120;
+                            FLLog.Debug("ObjList",
+                                $"{Parent.Nickname}: tradelane dock aborted, retrying ({dockRetryBudget} left)");
+                            dockable!.StartDock(Parent, 0, world: world,
+                                requestedTradelaneHardpoint: TradelaneHardpointTowards(dockable, dock.Towards, world));
+                        }
+                        else
+                        {
+                            NextDirective(world);
+                        }
                     }
                 }
 
