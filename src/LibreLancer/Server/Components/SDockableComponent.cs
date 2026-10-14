@@ -210,12 +210,19 @@ namespace LibreLancer.Server.Components
                 {
                     var nextPosition =
                         (nextHardpoint.TransformNoRotate * nextRing.Transform).Position;
+                    // Forward tolerance is twice the ship radius: the
+                    // autopilot's entry path ends one radius behind the
+                    // hardpoint and the movement layer can park the ship up
+                    // to another radius short of that, so a tolerance of one
+                    // radius leaves a dead zone where a stopped ship (large
+                    // transports especially) waits forever for a dock the
+                    // server never grants.
                     return TradelaneMotion.HasCrossedEntryPlane(
                         pos,
                         targetPos,
                         nextPosition - targetPos,
                         DockPoints[i].DockSphere.Radius + rad,
-                        rad);
+                        rad * 2);
                 }
             }
 
@@ -338,7 +345,24 @@ namespace LibreLancer.Server.Components
             GameWorld? world = null,
             string? requestedTradelaneHardpoint = null)
         {
-            if (activeDockings.Any(x => x.Ship == obj) || IsQueuedForDock(obj))
+            if (activeDockings.Any(x => x.Ship == obj))
+            {
+                // A tradelane docking entry can go stale when the ship's
+                // autopilot aborts the approach (the entry only clears on
+                // dock or despawn). Silently returning here made every
+                // re-issued Dock directive a no-op; restart the attempt
+                // instead when the ship is no longer actually docking.
+                // Base docks keep the old behavior - their entries interact
+                // with slot reservation and mooring timers.
+                if (Action.Kind != DockKinds.Tradelane ||
+                    (obj.TryGetComponent<AutopilotComponent>(out var oap) &&
+                     oap.CurrentBehavior == AutopilotBehaviors.Dock))
+                {
+                    return;
+                }
+                activeDockings.RemoveAll(x => x.Ship == obj);
+            }
+            if (IsQueuedForDock(obj))
                 return;
 
             var dockIndex = index;
