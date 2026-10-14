@@ -16,7 +16,11 @@ namespace LLServer
 	{
         public static async Task<int> Main(string[] args)
         {
-                   
+            // Debug-level engine logging on demand (headless diagnosis of NPC
+            // behavior, docking, ObjList execution).
+            if (Environment.GetEnvironmentVariable("LLSERVER_LOG_DEBUG") == "1")
+                FLLog.MinimumSeverity = LogSeverity.Debug;
+
             bool printHelp = false;
             bool printVersion = false;
             string? configPath = null;
