@@ -140,6 +140,20 @@ namespace LibreLancer.Server
 
         public override string ToString() => Object.NetID.ToString() + " " + Object.ToString();
 
+        // Live position telemetry for headless testing and the admin console:
+        // /npc getnpc('nick').pos()
+        public string pos()
+        {
+            var p = Object.Transform.Position;
+            return FormattableString.Invariant($"{p.X:F0} {p.Y:F0} {p.Z:F0}");
+        }
+
+        // AI state dump for headless diagnosis: /npc getnpc('nick').debug()
+        public string debug() =>
+            Object.TryGetComponent<SNPCComponent>(out var npc)
+                ? npc.GetDebugInfo().Replace('\n', ';')
+                : "no SNPCComponent";
+
         public void runfuse(DynValue obj)
         {
             var str = obj.CastToString();

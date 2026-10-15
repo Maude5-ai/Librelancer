@@ -741,6 +741,19 @@ namespace LibreLancer.Server.Components
                 lastTransitionTrace = $"damage trigger: damage={damageTaken:0.#}, evadeWeight={GetStateValue(currentState, StateGraphEntry.Evade):0.###}";
                 EnterState(StateGraphEntry.Evade, $"damage trigger: {damageTaken:0.#}");
             }
+            else if (damageTaken > 100 &&
+                     currentState != StateGraphEntry.Flee &&
+                     GetStateValue(currentState, StateGraphEntry.Flee) > 0)
+            {
+                // Tables with no combat-state weights but a Flee column
+                // (TRANSPORT, and the Flee column vanilla keeps on every
+                // graph) encode "run away": without this an attacked
+                // transport never leaves NULL, parking in space and trading
+                // turret fire instead of fleeing (#362 gap 1). Evade keeps
+                // priority so FIGHTER-class behavior is unchanged.
+                lastTransitionTrace = $"damage trigger: damage={damageTaken:0.#}, fleeWeight={GetStateValue(currentState, StateGraphEntry.Flee):0.###}";
+                EnterState(StateGraphEntry.Flee, $"damage trigger (flee): {damageTaken:0.#}");
+            }
         }
 
         public override void Update(double time, GameWorld world)
@@ -845,6 +858,17 @@ namespace LibreLancer.Server.Components
                     ap.GotoObject(shootAt, GotoKind.GotoNoCruise, 1, Pilot?.Trail?.Distance ?? 150);
                     canTransition = timeInState >= 5;
                     break;
+                case StateGraphEntry.Flee:
+                {
+                    // Run directly away from the attacker at cruise. No
+                    // transition out: fleeing ends when the hostile leaves
+                    // range or dies, which resets the graph to NULL.
+                    var away = mypos - shootAt.Transform.Position;
+                    var dir = away.LengthSquared() > 1 ? Vector3.Normalize(away) : Vector3.UnitY;
+                    ap.GotoVec(mypos + dir * 10000, GotoKind.Goto, 1, 0);
+                    canTransition = false;
+                    break;
+                }
                 default:
                     canTransition = true;
                     break;
