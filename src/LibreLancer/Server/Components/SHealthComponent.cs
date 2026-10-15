@@ -144,7 +144,7 @@ namespace LibreLancer.Server.Components
             CurrentHealth -= hullDamage;
             if (Parent.TryGetComponent<SNPCComponent>(out var npc))
             {
-                npc.TakingDamage(hullDamage);
+                npc.TakingDamage(hullDamage, attacker);
             }
 
             if (Invulnerable && CurrentHealth < (MaxHealth * InvulnerableThreshold))
@@ -272,7 +272,7 @@ namespace LibreLancer.Server.Components
                 }
                 else if (Parent.TryGetComponent<SNPCComponent>(out var npc))
                 {
-                    npc.TakingDamage(hullDamage);
+                    npc.TakingDamage(hullDamage, attacker);
                 }
 
                 return destroyed ? modelPart : null;

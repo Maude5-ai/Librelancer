@@ -729,10 +729,23 @@ namespace LibreLancer.Server.Components
         private double damageTimer = 3;
         private float damageTaken = 0;
 
-        public void TakingDamage(float amount)
+        public void TakingDamage(float amount) => TakingDamage(amount, null);
+
+        public void TakingDamage(float amount, GameObject? attacker)
         {
             damageTimer = 3;
             damageTaken += amount;
+
+            // Sustained deliberate fire makes the shooter hostile: without
+            // this a neutral ship being attacked never reacts at all (#362),
+            // and the state graph cannot flee from or fight an aggressor it
+            // does not consider a target. Gated on the same 100-in-3s window
+            // as the state triggers so a stray friendly shot never flips.
+            if (damageTaken > 100 && attacker != null && attacker != Parent &&
+                !IsHostileTo(attacker))
+            {
+                SetAttitude(attacker, RepAttitude.Hostile);
+            }
 
             if (damageTaken > 100 &&
                 currentState != StateGraphEntry.Evade &&
@@ -740,6 +753,7 @@ namespace LibreLancer.Server.Components
             {
                 lastTransitionTrace = $"damage trigger: damage={damageTaken:0.#}, evadeWeight={GetStateValue(currentState, StateGraphEntry.Evade):0.###}";
                 EnterState(StateGraphEntry.Evade, $"damage trigger: {damageTaken:0.#}");
+                wantsCombatInterrupt = true;
             }
             else if (damageTaken > 100 &&
                      currentState != StateGraphEntry.Flee &&
@@ -753,8 +767,17 @@ namespace LibreLancer.Server.Components
                 // priority so FIGHTER-class behavior is unchanged.
                 lastTransitionTrace = $"damage trigger: damage={damageTaken:0.#}, fleeWeight={GetStateValue(currentState, StateGraphEntry.Flee):0.###}";
                 EnterState(StateGraphEntry.Flee, $"damage trigger (flee): {damageTaken:0.#}");
+                wantsCombatInterrupt = true;
             }
         }
+
+        // #362 return-to-task: a JOB ship (ambient traffic, console/gateway
+        // spawns - anything without a MissionRuntime) whose damage trigger
+        // fired may have its directives suspended so the state graph can
+        // fight or flee; they resume when the hostile is gone. Mission
+        // NPCs stay script-ruled.
+        private bool wantsCombatInterrupt = false;
+        private AiState? suspendedAiState = null;
 
         public override void Update(double time, GameWorld world)
         {
@@ -776,6 +799,7 @@ namespace LibreLancer.Server.Components
             {
                 damageTimer = 0;
                 damageTaken = 0;
+                wantsCombatInterrupt = false;
             }
 
             CurrentDirective?.Update(Parent, world, this, time);
@@ -783,8 +807,44 @@ namespace LibreLancer.Server.Components
             var shootAt = GetHostileAndFire(time, world);
             lastShootAt = shootAt;
 
-            var runningDirective = Parent.TryGetComponent<DirectiveRunnerComponent>(out var directiveRunner) &&
-                                   directiveRunner.Active;
+            Parent.TryGetComponent<DirectiveRunnerComponent>(out var directiveRunner);
+
+            if (wantsCombatInterrupt && shootAt != null)
+            {
+                wantsCombatInterrupt = false;
+                if (MissionRuntime == null &&
+                    ap.CurrentBehavior != AutopilotBehaviors.Formation)
+                {
+                    if (directiveRunner is { Active: true })
+                    {
+                        directiveRunner.Suspend();
+                        lastStateChangeReason = "combat interrupt (directives suspended)";
+                    }
+                    else if (CurrentDirective != null)
+                    {
+                        suspendedAiState = CurrentDirective;
+                        CurrentDirective = null;
+                        lastStateChangeReason = "combat interrupt (ai state suspended)";
+                    }
+                }
+            }
+
+            if (shootAt == null &&
+                (suspendedAiState != null || (directiveRunner?.Suspended ?? false)))
+            {
+                if (directiveRunner is { Suspended: true })
+                {
+                    directiveRunner.Resume(world);
+                }
+                if (suspendedAiState != null)
+                {
+                    SetState(suspendedAiState, world);
+                    suspendedAiState = null;
+                }
+                lastStateChangeReason = "combat over (task resumed)";
+            }
+
+            var runningDirective = directiveRunner != null && directiveRunner.Active;
 
             if (CurrentDirective != null ||
                 runningDirective ||
