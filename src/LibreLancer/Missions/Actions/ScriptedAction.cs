@@ -159,6 +159,7 @@ namespace LibreLancer.Missions.Actions
                     TriggerActions.Act_GCSClamp => new Act_GcsClamp(a),
                     TriggerActions.Act_ForceLand => new Act_ForceLand(a),
                     TriggerActions.Act_EtherComm => new Act_EtherComm(a),
+                    TriggerActions.Act_SendChat => new Act_SendChat(a),
                     TriggerActions.Act_EnableManeuver => new Act_EnableManeuver(a),
                     TriggerActions.Act_EnableEnc => new Act_EnableEnc(a),
                     TriggerActions.Act_DockRequest => new Act_DockRequest(a),

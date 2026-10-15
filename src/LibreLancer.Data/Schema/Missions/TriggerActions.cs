@@ -91,5 +91,8 @@ public enum TriggerActions
     Act_AdjAcct,
     Act_AddRTC,
     Act_AddAmbient,
-    Act_ActTrig
+    Act_ActTrig,
+    // Fork extension (Skydra): sends a chat line to the mission's player -
+    // the in-fiction hail channel for custom multiplayer missions.
+    Act_SendChat
 }

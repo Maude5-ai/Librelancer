@@ -4,6 +4,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using LibreLancer.Net;
 using LibreLancer.Data;
 using LibreLancer.Data.Ini;
 using LibreLancer.Data.Schema.Missions;
@@ -114,6 +116,43 @@ namespace LibreLancer.Missions.Actions
 
             FLLog.Warning("Missions", $"Could not find comm voice for '{source}', using trent_voice");
             return "trent_voice";
+        }
+    }
+
+    // Fork extension (Skydra): "Act_SendChat = Sender Name, text..." delivers
+    // an in-fiction chat line to the mission's player over the existing chat
+    // RPC - no voice assets, no protocol change. The first value is the
+    // speaker, every remaining value is re-joined with ", " so commas in
+    // dialogue survive the INI split.
+    public class Act_SendChat : ScriptedAction
+    {
+        public string From = string.Empty;
+        public string Text = string.Empty;
+
+        public Act_SendChat()
+        {
+        }
+
+        public Act_SendChat(MissionAction act) : base(act)
+        {
+            GetString(nameof(From), 0, out From, act.Entry);
+            if (act.Entry.Count > 1)
+            {
+                Text = string.Join(", ",
+                    Enumerable.Range(1, act.Entry.Count - 1).Select(i => act.Entry[i].ToString()));
+            }
+        }
+
+        public override void Write(IniBuilder.IniSectionBuilder section)
+        {
+            section.Entry("Act_SendChat", From, Text);
+        }
+
+        public override void Invoke(MissionRuntime runtime, MissionScript script)
+        {
+            runtime.Player.RpcClient.ReceiveChatMessage(ChatCategory.System,
+                BinaryChatMessage.PlainText(From + ": "),
+                BinaryChatMessage.PlainText(Text));
         }
     }
 
