@@ -3,6 +3,37 @@ A re-implementation of the 2003 Space Game [Freelancer](https://en.wikipedia.org
 
 Currently running on Windows and Linux (macOS pending maintainer)
 
+---
+
+> ## About this fork
+>
+> This is a **private-use fork** of Librelancer, maintained with AI assistance
+> under the repository owner's direction and review (see [AGENTS.md](AGENTS.md)).
+> It is not affiliated with or endorsed by the Librelancer project, and nothing
+> here is submitted upstream — please do **not** report issues from this fork
+> to the upstream project. Upstream development lives at
+> [codeberg.org/Librelancer/Librelancer](https://codeberg.org/Librelancer/Librelancer).
+>
+> What this fork adds, on branch `macos-arm64-fixes-oct`, under the same MIT license:
+>
+> - **macOS arm64 (Apple Silicon)** build and input fixes — client and server
+>   run natively
+> - **Server-assigned multiplayer missions**: a `CharacterMissions` server
+>   config map, per-player mission runtimes and mission events, and mission
+>   state that persists across sessions
+> - **`Act_SendChat`** mission action — in-fiction chat lines from mission
+>   scripts, no voice assets required
+> - **NPC behavior**: a Flee state driven by the vanilla state graph, reactions
+>   to being attacked, and return-to-task after combat interruptions
+> - **Docking fixes**: tradelane dock-ring selection (upstream issue #334) and
+>   dock resilience under load
+> - **Headless server tooling**: console verbs for NPC inspection and spawning,
+>   useful for automated testing
+>
+> Everything below this line is the original upstream README.
+
+---
+
 Support Librelancer on Patreon: https://www.patreon.com/librelancer
 
 Download compiled binaries from https://librelancer.net/downloads.html
