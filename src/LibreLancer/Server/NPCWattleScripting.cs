@@ -30,6 +30,7 @@ namespace LibreLancer.Server
             script.Globals["spawnnpc"] = DynValue.FromObject(script, spawnnpc);
             script.Globals["spawnnpcbase"] = DynValue.FromObject(script, spawnnpcbase);
             script.Globals["spawnnpcrot"] = DynValue.FromObject(script, spawnnpcrot);
+            script.Globals["spawnnpcgraph"] = DynValue.FromObject(script, spawnnpcgraph);
             script.Globals["getnpc"] = DynValue.FromObject(script, getnpc);
             script.Globals["runscript"] = DynValue.FromObject(script, runscript);
         }
@@ -92,6 +93,15 @@ namespace LibreLancer.Server
             return DoSpawn(loadout, pilot, x, y, z, null);
         }
 
+        // Like spawnnpc but with an explicit state graph (TRANSPORT, GUNBOAT,
+        // CRUISER, ...) instead of the hardcoded FIGHTER, and a nickname so
+        // later console calls can address the ship via getnpc('nick') -
+        // needed to exercise non-fighter AI (flee, task resume) headless.
+        public NPCWattleInstance spawnnpcgraph(string loadout, string pilot, string stategraph, string nick, float x, float y, float z)
+        {
+            return DoSpawn(loadout, pilot, x, y, z, null, null, stategraph, nick);
+        }
+
         public NPCWattleInstance spawnnpcbase(string loadout, string pilot, string arrivalObj)
         {
             return DoSpawn(loadout, pilot, 0, 0, 0, arrivalObj);
@@ -103,7 +113,7 @@ namespace LibreLancer.Server
             return DoSpawn(loadout, pilot, x, y, z, null, new(rx, ry, rz, rw));
         }
 
-        private NPCWattleInstance DoSpawn(string loadout, string? pilot, float x, float y, float z, string? arrivalObj, Quaternion? rot = null)
+        private NPCWattleInstance DoSpawn(string loadout, string? pilot, float x, float y, float z, string? arrivalObj, Quaternion? rot = null, string stateGraph = "FIGHTER", string? nickname = null)
         {
             if (!manager.World.Server.GameData.Items.TryGetLoadout(loadout, out var resolved))
                 throw new ScriptRuntimeException($"Could not get loadout {loadout}");
@@ -114,7 +124,7 @@ namespace LibreLancer.Server
             }
 
             var position = new Vector3(x, y, z);
-            var obj = manager.DoSpawn(new ObjectName("spawned " + ++spawnCount), null, null,  "FIGHTER", null, resolved, p, position, rot ?? Quaternion.Identity, arrivalObj, 0);
+            var obj = manager.DoSpawn(new ObjectName("spawned " + ++spawnCount), nickname, null,  stateGraph, null, resolved, p, position, rot ?? Quaternion.Identity, arrivalObj, 0);
             return new NPCWattleInstance(obj, manager.World.GameWorld, this);
         }
     }
@@ -153,6 +163,15 @@ namespace LibreLancer.Server
             Object.TryGetComponent<SNPCComponent>(out var npc)
                 ? npc.GetDebugInfo().Replace('\n', ';')
                 : "no SNPCComponent";
+
+        // Feed the AI damage accumulator directly (no hull change): lets
+        // tests fire the damage-response triggers deterministically where
+        // AI-vs-AI ballistics are too flaky to land 100-in-3s on demand.
+        public void hurt(float amount)
+        {
+            if (Object.TryGetComponent<SNPCComponent>(out var npc))
+                npc.TakingDamage(amount, null);
+        }
 
         public void runfuse(DynValue obj)
         {

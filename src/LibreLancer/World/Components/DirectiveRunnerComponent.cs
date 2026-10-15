@@ -11,16 +11,43 @@ namespace LibreLancer.World;
 
 public class DirectiveRunnerComponent(GameObject parent) : GameComponent(parent)
 {
-    public bool Active => index >= 0 && currentDirectives != null;
+    public bool Active => !suspended && index >= 0 && currentDirectives != null;
 
     private int index = -1;
     private int splineIndex = -1;
     private MissionDirective[]? currentDirectives;
+    private bool suspended = false;
+
+    // Combat interruption (#362 return-to-task): park the directive list
+    // without losing position; Resume restarts the current directive, which
+    // is safe since directive starts are re-entrant (see the Dock retry).
+    public bool Suspended => suspended && index >= 0 && currentDirectives != null;
+
+    public void Suspend()
+    {
+        if (index < 0 || currentDirectives == null || suspended)
+            return;
+        suspended = true;
+        if (Parent.TryGetComponent<AutopilotComponent>(out var ap))
+            ap.Cancel();
+    }
+
+    public void Resume(GameWorld world)
+    {
+        if (!suspended)
+            return;
+        suspended = false;
+        if (index >= 0 && currentDirectives != null && index < currentDirectives.Length)
+        {
+            StartDirective(currentDirectives[index], world);
+        }
+    }
 
     public void SetDirectives(MissionDirective[]? directives, GameWorld world)
     {
         if (Parent.TryGetComponent<SNPCComponent>(out var npc))
             npc.ClearStayInRange();
+        suspended = false;
         currentDirectives = directives;
         index = directives == null ? -1 : 0;
         if (directives != null && index < directives.Length)
@@ -31,6 +58,7 @@ public class DirectiveRunnerComponent(GameObject parent) : GameComponent(parent)
 
     public void Cancel(bool cancelAutopilot = true)
     {
+        suspended = false;
         currentDirectives = null;
         index = -1;
         splineIndex = -1;
