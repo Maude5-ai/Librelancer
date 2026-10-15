@@ -30,6 +30,9 @@ namespace LibreLancer.Server
 
         public bool Admin;
         public string? Base { get; private set; }
+        // Assigned-mission persistence: null = not started, "done" =
+        // completed, else comma-joined active trigger hashes to restore.
+        public string? MissionState { get; private set; }
         public string? System { get; private set; }
         public Vector3 Position { get; private set; }
         public Quaternion Orientation { get; private set; } = Quaternion.Identity;
@@ -145,6 +148,8 @@ namespace LibreLancer.Server
             }
 
             public void UpdateName(string name) => nc.Name = name;
+
+            public void UpdateMissionState(string? state) => nc.MissionState = state;
 
             public void UpdateFightersKilled(long killed)
             {
@@ -289,6 +294,7 @@ namespace LibreLancer.Server
                 c.Name = nc.Name;
                 c.Base = nc.Base;
                 c.System = nc.System;
+                c.MissionState = nc.MissionState;
                 c.X = nc.Position.X;
                 c.Y = nc.Position.Y;
                 c.Z = nc.Position.Z;
@@ -518,6 +524,7 @@ namespace LibreLancer.Server
             nc.charId = id;
             nc.Base = c.Base;
             nc.System = c.System;
+            nc.MissionState = c.MissionState;
             nc.Position = new Vector3(c.X, c.Y, c.Z);
             nc.Orientation = new Quaternion(c.RotationX, c.RotationY, c.RotationZ, c.RotationW);
             nc.Ship = game.GameData.Items.Ships.Get(c.Ship);

@@ -165,6 +165,11 @@ namespace LibreLancer.Missions
                 $"Total mission save triggers saved: {sg.TriggerSave.Count}, space status: {(Player.Space != null ? "in space" : "not in space")}");
         }
 
+        // Active trigger hashes for multiplayer persistence: the constructor's
+        // triggerSave argument round-trips these on the next login.
+        public uint[] GetActiveTriggerHashes() =>
+            activeTriggers.Select(x => FLHash.CreateID(x.Trigger.Nickname)).ToArray();
+
         public void RegisterSaveTrigger(string triggerName)
         {
             // When a save trigger is reached, we register it as the last save trigger

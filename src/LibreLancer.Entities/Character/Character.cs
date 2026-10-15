@@ -64,6 +64,11 @@ public class Character : BaseEntity
     // CRCs of ship parts destroyed on the current ship
     public IReadOnlyList<uint> DestroyedParts { get; set; } = [];
 
+    // Multiplayer mission persistence: null = assigned mission not yet
+    // started, "done" = completed (never re-run), otherwise a comma-joined
+    // list of active trigger hashes to restore on next login.
+    public string? MissionState { get; set; }
+
     // Current faction affiliation
     public string? Affiliation { get; set; }
 

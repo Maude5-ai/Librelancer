@@ -142,6 +142,9 @@ namespace LibreLancer.Database.Migrations
                     b.Property<bool>("IsAdmin")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("MissionState")
+                        .HasColumnType("TEXT");
+
                     b.Property<long>("MissionsCompleted")
                         .HasColumnType("INTEGER");
 

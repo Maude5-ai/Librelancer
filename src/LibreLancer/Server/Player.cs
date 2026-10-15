@@ -211,6 +211,15 @@ namespace LibreLancer.Server
         {
             if (Story?.CurrentMission == null)
             {
+                // An assigned mission completing is permanent: mark it done
+                // so it never re-runs on a later login.
+                if (assignedMissionActive && Character != null)
+                {
+                    assignedMissionActive = false;
+                    using var c = Character.BeginTransaction();
+                    c.UpdateMissionState("done");
+                    FLLog.Info("Mission", $"Assigned mission completed for '{Name}'");
+                }
                 msnRuntime = null;
                 ActiveRandomMissionPosition = null;
                 SetObjective(new NetObjective(), false);
@@ -242,6 +251,7 @@ namespace LibreLancer.Server
 
         public void StartRandomMission(GeneratedRandomMission mission, NetMissionOffer netOffer)
         {
+            assignedMissionActive = false; // runtime is being replaced by a job
             ActiveRandomMissionPosition = mission.Parameters.TargetPosition;
             msnRuntime = new MissionRuntime(mission.CreateScript(), this, []);
             rpcClient.SetActiveRandomMission(netOffer);
@@ -961,10 +971,20 @@ namespace LibreLancer.Server
         // net characters must avoid SP-only actions (Act_Save, story
         // advancement) and the world events still routed to LocalPlayer
         // only (loot acquired / launch complete / jumpers).
+        // True while msnRuntime belongs to this character's ASSIGNED mission
+        // (as opposed to a job-board random mission) - gates persistence.
+        private bool assignedMissionActive = false;
+
         private void TryStartAssignedMission()
         {
             if (SinglePlayer || Name == null) return;
             if (!Game.CharacterMissions.TryGetValue(Name, out var missionFile)) return;
+            var state = Character?.MissionState;
+            if ("done".Equals(state, StringComparison.OrdinalIgnoreCase))
+            {
+                FLLog.Debug("Mission", $"Assigned mission already completed for '{Name}'");
+                return;
+            }
             try
             {
                 var missionIni = Game.GameData.Items.Ini.LoadMissionIni(missionFile);
@@ -973,14 +993,25 @@ namespace LibreLancer.Server
                     FLLog.Warning("Mission", $"Assigned mission '{missionFile}' for '{Name}' not found in game data");
                     return;
                 }
-                msnRuntime = new MissionRuntime(new(missionIni, Game.GameData.Items), this, []);
+                // Restore mid-mission progress saved at the last logout.
+                uint[] restore = [];
+                if (!string.IsNullOrWhiteSpace(state))
+                {
+                    restore = state.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                        .Select(s => uint.TryParse(s, out var h) ? h : 0u)
+                        .Where(h => h != 0).ToArray();
+                }
+                msnRuntime = new MissionRuntime(new(missionIni, Game.GameData.Items), this, restore);
+                assignedMissionActive = true;
                 msnRuntime.Update(0.0);
-                FLLog.Info("Mission", $"Assigned mission '{missionFile}' started for '{Name}'");
+                FLLog.Info("Mission",
+                    $"Assigned mission '{missionFile}' {(restore.Length > 0 ? $"resumed ({restore.Length} triggers)" : "started")} for '{Name}'");
             }
             catch (Exception ex)
             {
                 FLLog.Warning("Mission", $"Assigned mission '{missionFile}' failed to start for '{Name}': {ex.Message}");
                 msnRuntime = null;
+                assignedMissionActive = false;
             }
         }
 
@@ -1693,6 +1724,12 @@ namespace LibreLancer.Server
                 using var c = Character.BeginTransaction();
                 c.UpdatePosition(Base, System, Position, Orientation);
                 c.UpdateTime(Character.Time + (DateTime.UtcNow - StartTime).Seconds);
+                // Persist assigned-mission progress so the mission resumes
+                // where it left off on the next login instead of restarting.
+                if (assignedMissionActive && msnRuntime != null)
+                {
+                    c.UpdateMissionState(string.Join(',', msnRuntime.GetActiveTriggerHashes()));
+                }
                 Space?.Leave(false);
                 Space = null;
                 foreach (var player in Game.AllPlayers.Where(x => x != this))
