@@ -138,7 +138,8 @@ namespace LibreLancer.Server
                 FLLog.Info("Mission", $"Mission runtime handling base enter: {Story?.CurrentMission?.Nickname}");
                 MissionRuntime.SpaceExit();
                 MissionRuntime.BaseEnter(baseName);
-                MissionRuntime.CheckMissionScript();
+                // BaseEnter can complete the mission and clear its runtime.
+                MissionRuntime?.CheckMissionScript();
             }
             else
             {
